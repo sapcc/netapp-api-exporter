@@ -1,11 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/pepabo/go-netapp/netapp"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -36,6 +39,7 @@ type filer struct {
 	Host     string `yaml:"ip"`
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
+	Client   *netapp.Client
 }
 
 func main() {
@@ -43,7 +47,7 @@ func main() {
 
 	kingpin.Parse()
 
-	if os.Getenv("Dev") != "" {
+	if os.Getenv("DEV") != "" {
 		filers = loadFilerFromEnv()
 	} else {
 		filers = loadFilerFromFile(*configFile)
@@ -52,11 +56,19 @@ func main() {
 	p := NewCapacityExporter()
 
 	for _, f := range filers {
+		url := fmt.Sprintf(_url, f.Host)
+		opt := &netapp.ClientOptions{
+			BasicAuthUser:     f.Username,
+			BasicAuthPassword: f.Password,
+			SSLVerify:         false,
+			Timeout:           30 * time.Second,
+		}
+		f.Client = netapp.NewClient(url, version, opt)
+
 		go p.run(f, time.Duration(*sleepTime))
 	}
 
 	prometheus.MustRegister(p.collector)
-
 	http.Handle("/metrics", promhttp.Handler())
 	http.ListenAndServe(*listenAddress+":9108", nil)
 }
