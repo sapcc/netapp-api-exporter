@@ -1,0 +1,10 @@
+.DS_Store
+.envrc
+.commit*
+
+.vscode/
+debug/
+tmp/
+
+netapp-exporter
+
