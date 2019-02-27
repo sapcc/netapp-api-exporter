@@ -3,9 +3,12 @@ package main
 import (
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -23,26 +26,9 @@ const (
 
 // Parameter
 var (
-	waitTime      = kingpin.Flag("wait", "Wait time").Short('w').Default("300").Int()
+	sleepTime     = kingpin.Flag("wait", "Wait time").Short('w').Default("300").Int64()
 	configFile    = kingpin.Flag("config", "Config file").Short('f').Default("./netapp_filers.yaml").String()
 	listenAddress = kingpin.Flag("listen", "Listen address").Short('l').Default("0.0.0.0").String()
-)
-
-var (
-	netappCapacity = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: "netapp",
-			Subsystem: "capacity",
-			Name:      "svm",
-			Help:      "netapp SVM capacity",
-		},
-		[]string{
-			"filer",
-			"svm",
-			"volume",
-			"metric",
-		},
-	)
 )
 
 type filer struct {
@@ -53,39 +39,29 @@ type filer struct {
 }
 
 func main() {
+	var filers []*filer
+
 	kingpin.Parse()
 
-	var filers []filer
 	if os.Getenv("Dev") != "" {
 		filers = loadFilerFromEnv()
 	} else {
 		filers = loadFilerFromFile(*configFile)
 	}
 
-	p := prometheusExporter(filers)
+	p := NewCapacityExporter()
 
-	p.run()
-	// vserverInfo := &netapp.VServerInfo{
-	// 	VserverName:   "1",
-	// 	UUID:          "1",
-	// 	State:         "1",
-	// 	AggregateList: &[]string{"x"},
-	// }
+	for _, f := range filers {
+		go p.run(f, time.Duration(*sleepTime))
+	}
 
-	// volumeQuery:= &netapp.VolumeInfo{
+	prometheus.MustRegister(p.collector)
 
-	// }
-
-	// volumeInfo := &netapp.VolumeInfo{
-	// 	VolumeIDAttributes: &netapp.VolumeIDAttributes{
-	// 		Name:              "x",
-	// 		OwningVserverName: "x",
-	// 	},
-	// }
-
+	http.Handle("/metrics", promhttp.Handler())
+	http.ListenAndServe(*listenAddress+":9108", nil)
 }
 
-func loadFilerFromFile(fileName string) (c []filer) {
+func loadFilerFromFile(fileName string) (c []*filer) {
 	yamlFile, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		log.Fatal("[ERROR] ", err)
@@ -97,13 +73,12 @@ func loadFilerFromFile(fileName string) (c []filer) {
 	return
 }
 
-func loadFilerFromEnv() (c []filer) {
-	c = append(c, filer{
+func loadFilerFromEnv() (c []*filer) {
+	c = append(c, &filer{
 		Name:     "test",
 		Host:     os.Getenv("NETAPP_HOST"),
 		Username: os.Getenv("NETAPP_USERNAME"),
 		Password: os.Getenv("NETAPP_PASSWORD"),
 	})
-
 	return
 }
