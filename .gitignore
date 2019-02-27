@@ -7,4 +7,5 @@ debug/
 tmp/
 
 netapp-exporter
+netapp_filers.yaml
 
