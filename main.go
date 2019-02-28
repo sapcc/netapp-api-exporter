@@ -50,13 +50,17 @@ func main() {
 }
 
 func loadFilerFromFile(fileName string) (c []*Filer) {
+	var fb []FilerBase
 	yamlFile, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		log.Fatal("[ERROR] ", err)
 	}
-	err = yaml.Unmarshal(yamlFile, &c)
+	err = yaml.Unmarshal(yamlFile, &fb)
 	if err != nil {
 		log.Fatal("[ERROR] ", err)
+	}
+	for _, b := range fb {
+		c = append(c, &Filer{FilerBase: b})
 	}
 	return
 }
