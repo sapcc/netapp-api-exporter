@@ -101,7 +101,7 @@ func NewCapacityExporter() *CapacityExporter {
 	return &CapacityExporter{netappCapacity}
 }
 
-func (p *CapacityExporter) run(f *filer, t time.Duration) {
+func (p *CapacityExporter) run(f *Filer, t time.Duration) {
 
 	for {
 		// capa := []CapacityData{}
@@ -129,4 +129,8 @@ func (p *CapacityExporter) run(f *filer, t time.Duration) {
 
 		time.Sleep(t * time.Second)
 	}
+}
+
+func (p *CapacityExporter) runGetProjectShare(m *ProjectShareMap, t time.Duration) {
+
 }

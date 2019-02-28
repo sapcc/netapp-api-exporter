@@ -1,14 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"time"
-
-	"github.com/pepabo/go-netapp/netapp"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -22,11 +19,6 @@ var (
 	password string
 )
 
-const (
-	_url    = "https://%s/servlets/netapp.servlets.admin.XMLrequest_filer"
-	version = "1.7"
-)
-
 // Parameter
 var (
 	sleepTime     = kingpin.Flag("wait", "Wait time").Short('w').Default("300").Int64()
@@ -34,16 +26,8 @@ var (
 	listenAddress = kingpin.Flag("listen", "Listen address").Short('l').Default("0.0.0.0").String()
 )
 
-type filer struct {
-	Name     string `yaml:"name"`
-	Host     string `yaml:"ip"`
-	Username string `yaml:"username"`
-	Password string `yaml:"password"`
-	Client   *netapp.Client
-}
-
 func main() {
-	var filers []*filer
+	var filers []*Filer
 
 	kingpin.Parse()
 
@@ -56,15 +40,7 @@ func main() {
 	p := NewCapacityExporter()
 
 	for _, f := range filers {
-		url := fmt.Sprintf(_url, f.Host)
-		opt := &netapp.ClientOptions{
-			BasicAuthUser:     f.Username,
-			BasicAuthPassword: f.Password,
-			SSLVerify:         false,
-			Timeout:           30 * time.Second,
-		}
-		f.Client = netapp.NewClient(url, version, opt)
-
+		f.Init()
 		go p.run(f, time.Duration(*sleepTime))
 	}
 
@@ -73,7 +49,7 @@ func main() {
 	http.ListenAndServe(*listenAddress+":9108", nil)
 }
 
-func loadFilerFromFile(fileName string) (c []*filer) {
+func loadFilerFromFile(fileName string) (c []*Filer) {
 	yamlFile, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		log.Fatal("[ERROR] ", err)
@@ -85,12 +61,11 @@ func loadFilerFromFile(fileName string) (c []*filer) {
 	return
 }
 
-func loadFilerFromEnv() (c []*filer) {
-	c = append(c, &filer{
-		Name:     "test",
-		Host:     os.Getenv("NETAPP_HOST"),
-		Username: os.Getenv("NETAPP_USERNAME"),
-		Password: os.Getenv("NETAPP_PASSWORD"),
-	})
+func loadFilerFromEnv() (c []*Filer) {
+	host := os.Getenv("NETAPP_HOST")
+	username := os.Getenv("NETAPP_USERNAME")
+	password := os.Getenv("NETAPP_PASSWORD")
+	f := NewFiler("test", host, username, password)
+	c = append(c, f)
 	return
 }
