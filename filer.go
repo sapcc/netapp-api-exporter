@@ -54,8 +54,10 @@ func (f *Filer) Init() {
 	}
 	f.NetappClient = netapp.NewClient(url, version, netappOpt)
 
+	IDEndpoint := fmt.Sprintf("https://identity-3.%s.cloud.sap/v3", os.Getenv("OS_REGION"))
+
 	osOpt := gophercloud.AuthOptions{
-		IdentityEndpoint: "https://identity-3.staging.cloud.sap/v3",
+		IdentityEndpoint: IDEndpoint,
 		DomainName:       "ccadmin",
 		TenantName:       "cloud_admin",
 		Username:         os.Getenv("OS_USER"),
