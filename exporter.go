@@ -1,10 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"time"
-
-	"github.com/pepabo/go-netapp/netapp"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -24,50 +21,6 @@ var (
 			"metric",
 		},
 	)
-
-	vserverOptions = netapp.VServerOptions{
-		Query: &netapp.VServerQuery{
-			VServerInfo: &netapp.VServerInfo{
-				VserverType: "cluster | data",
-			},
-		},
-		DesiredAttributes: &netapp.VServerQuery{
-			VServerInfo: &netapp.VServerInfo{
-				VserverName: "x",
-				UUID:        "x",
-			},
-		},
-		MaxRecords: 100,
-	}
-
-	volumeOptions = netapp.VolumeOptions{
-		MaxRecords: 200,
-		Query: &netapp.VolumeQuery{
-			VolumeInfo: &netapp.VolumeInfo{
-				VolumeIDAttributes: &netapp.VolumeIDAttributes{
-					OwningVserverUUID: "x",
-				},
-			},
-		},
-		DesiredAttributes: &netapp.VolumeQuery{
-			VolumeInfo: &netapp.VolumeInfo{
-				VolumeIDAttributes: &netapp.VolumeIDAttributes{
-					Name:              "x",
-					OwningVserverName: "x",
-					OwningVserverUUID: "x",
-				},
-				VolumeSpaceAttributes: &netapp.VolumeSpaceAttributes{
-					//
-					Size:                1,
-					SizeTotal:           "x",
-					SizeAvailable:       "x",
-					SizeUsed:            "x",
-					SizeUsedBySnapshots: "x",
-					PercentageSizeUsed:  "x",
-				},
-			},
-		},
-	}
 
 // 	Query: &netapp.VolumeQuery{
 // 			VolumeInfo: &netapp.VolumeInfo{
@@ -101,24 +54,10 @@ func NewCapacityExporter() *CapacityExporter {
 	return &CapacityExporter{netappCapacity}
 }
 
-func (p *CapacityExporter) run(f *Filer, t time.Duration) {
+func (p *CapacityExporter) runGetNetappShare(f *Filer, t time.Duration) {
 
 	for {
-		// capa := []CapacityData{}
-		// fmt.Println(capa)
-
-		vserverList, _, _ := f.Client.VServer.List(&vserverOptions)
-		fmt.Println("vserverList ", vserverList)
-
-		for i, vserver := range vserverList.Results.AttributesList.VserverInfo {
-			if i > 1 {
-				break
-			}
-			fmt.Println(volumeOptions.Query)
-			volumeOptions.Query.VolumeInfo.VolumeIDAttributes.OwningVserverUUID = vserver.UUID
-			vol, _, _ := f.Client.Volume.List(&volumeOptions)
-			fmt.Println(vol)
-		}
+		f.GetNetappShare()
 
 		// for _, d := range capa {
 		// 	netappCapacity.WithLabelValues(f.Name, d.Vserver, d.Volume, "total").Set(d.Space.TotalSize)
@@ -131,6 +70,9 @@ func (p *CapacityExporter) run(f *Filer, t time.Duration) {
 	}
 }
 
-func (p *CapacityExporter) runGetProjectShare(m *ProjectShareMap, t time.Duration) {
-
+func (p *CapacityExporter) runGetOSShare(f *Filer, t time.Duration) {
+	for {
+		f.GetOSShare()
+		time.Sleep(t * time.Second)
+	}
 }
