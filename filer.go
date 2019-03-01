@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/gophercloud/gophercloud"
@@ -21,7 +22,7 @@ type Filer struct {
 	FilerBase
 	NetappClient    *netapp.Client
 	OpenstackClient *gophercloud.ServiceClient
-	Share           *ProjectShareMap
+	// Share           *ProjectShareMap
 }
 
 type FilerBase struct {
@@ -29,6 +30,22 @@ type FilerBase struct {
 	Host     string `yaml:"ip"`
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
+}
+
+type ManilaShare struct {
+	ShareID    string
+	ShareName  string
+	ProjectId  string
+	InstanceID string
+}
+
+type NetappVolume struct {
+	Vserver            string
+	Volume             string
+	SizeTotal          float64
+	SizeAvailable      float64
+	SizeUsed           float64
+	PercentageSizeUsed float64
 }
 
 func NewFiler(name, host, username, password string) *Filer {
@@ -73,7 +90,7 @@ func (f *Filer) Init() {
 	f.OpenstackClient, err = openstack.NewSharedFileSystemV2(provider, eo)
 }
 
-func (f *Filer) GetOSShare() {
+func (f *Filer) GetManilaShare() map[string]ManilaShare {
 	lo := shares.ListOpts{AllTenants: true}
 	allpages, err := shares.ListDetail(f.OpenstackClient, lo).AllPages()
 	if err != nil {
@@ -85,16 +102,21 @@ func (f *Filer) GetOSShare() {
 		log.Fatal(err)
 	}
 
+	r := make(map[string]ManilaShare)
+
 	for _, s := range sh {
-		log.Println(s.ProjectID, s.ID, s.Name)
-		// m.Data[s.ProjectID] = ProjectShare{
-		// 	Project:   s.ProjectID,
-		// 	ShareName: s.Name,
-		// }
+		// r[instance_id]
+		r[s.Name] = ManilaShare{
+			ShareID:   s.ID,
+			ShareName: s.Name,
+			ProjectId: s.ProjectID,
+		}
 	}
+
+	return r
 }
 
-func (f *Filer) GetNetappShare() {
+func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 
 	vserverOptions := netapp.VServerOptions{
 		Query: &netapp.VServerQuery{
@@ -143,13 +165,21 @@ func (f *Filer) GetNetappShare() {
 	vserverList, _, _ := f.NetappClient.VServer.List(&vserverOptions)
 	// fmt.Println("vserverList ", vserverList)
 
-	for i, vserver := range vserverList.Results.AttributesList.VserverInfo {
-		if i > 1 {
-			break
-		}
+	for _, vserver := range vserverList.Results.AttributesList.VserverInfo {
 		volumeOptions.Query.VolumeInfo.VolumeIDAttributes.OwningVserverUUID = vserver.UUID
-		vol, _, _ := f.NetappClient.Volume.List(&volumeOptions)
-		log.Println(vol)
+		vols, _, _ := f.NetappClient.Volume.List(&volumeOptions)
+
+		for _, vol := range vols.Results.AttributesList {
+			nv := &NetappVolume{Vserver: vserver.VserverName}
+			nv.Volume = vol.VolumeIDAttributes.Name
+			nv.SizeAvailable, err = strconv.ParseFloat(vol.VolumeSpaceAttributes.SizeAvailable, 64)
+			nv.SizeTotal, err = strconv.ParseFloat(vol.VolumeSpaceAttributes.SizeTotal, 64)
+			nv.SizeUsed, err = strconv.ParseFloat(vol.VolumeSpaceAttributes.SizeUsed, 64)
+			nv.PercentageSizeUsed, err = strconv.ParseFloat(vol.VolumeSpaceAttributes.PercentageSizeUsed, 64)
+
+			r = append(r, nv)
+		}
 	}
 
+	return
 }

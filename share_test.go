@@ -31,6 +31,12 @@ func TestC(t *testing.T) {
 
 		eo := gophercloud.EndpointOpts{Region: os.Getenv("OS_REGION")}
 		client, err := openstack.NewSharedFileSystemV2(provider, eo)
+
+		// client.Endpoint = "http" + client.Endpoint[5:]
+		// a := "http://share-3.staging.cloud.sap/v2/6a030751147a45c0863c3b5bde32c744/shares/d23b86ed-62d8-4fc2-b29a-e378fe1fa1fe/export_locations"
+		// b := "http://share-3.staging.cloud.sap/v2/6a030751147a45c0863c3b5bde32c744/shares/d23b86ed-62d8-4fc2-b29a-e378fe1fa1fe/export_locations"
+		// assert.Equal(t, a, b)
+
 		if assert.Nil(t, err) {
 			// assert.Equal(t, "", client)
 
@@ -65,5 +71,3 @@ func TestC(t *testing.T) {
 
 // /v2/ae63ddf2076d4342a56eb049e37a7621/shares/d23b86ed-62d8-4fc2-b29a-e378fe1fa1fe/export_location
 // https://share-3.staging.cloud.sap/v2/6a030751147a45c0863c3b5bde32c744/shares/d23b86ed-62d8-4fc2-b29a-e378fe1fa1fe/export_locations
-// http://share-3.staging.cloud.sap/v2/6a030751147a45c0863c3b5bde32c744/shares/d23b86ed-62d8-4fc2-b29a-e378fe1fa1fe/export_locations
-// http://share-3.staging.cloud.sap/v2/6a030751147a45c0863c3b5bde32c744/shares/d23b86ed-62d8-4fc2-b29a-e378fe1fa1fe/export_locations
