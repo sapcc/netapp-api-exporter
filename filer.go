@@ -77,7 +77,7 @@ func (f *Filer) Init() {
 		IdentityEndpoint: IDEndpoint,
 		DomainName:       "ccadmin",
 		TenantName:       "cloud_admin",
-		Username:         os.Getenv("OS_USER"),
+		Username:         os.Getenv("OS_USERNAME"),
 		Password:         os.Getenv("OS_PASSWORD"),
 	}
 

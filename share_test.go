@@ -22,7 +22,7 @@ func TestC(t *testing.T) {
 		IdentityEndpoint: IDEndpoint,
 		DomainName:       "ccadmin",
 		TenantName:       "cloud_admin",
-		Username:         os.Getenv("OS_USER"),
+		Username:         os.Getenv("OS_USERNAME"),
 		Password:         os.Getenv("OS_PASSWORD"),
 	}
 
