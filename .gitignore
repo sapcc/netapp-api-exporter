@@ -6,6 +6,6 @@
 debug/
 tmp/
 
-netapp-exporter
+netapp-api-exporter
 netapp_filers.yaml
 
