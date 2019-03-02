@@ -10,4 +10,5 @@ tmp/
 
 netapp-api-exporter
 netapp_filers.yaml
-
+*crl
+*crt
