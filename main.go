@@ -13,12 +13,6 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
-var (
-	url      string
-	username string
-	password string
-)
-
 // Parameter
 var (
 	sleepTime     = kingpin.Flag("wait", "Wait time").Short('w').Default("300").Int64()
