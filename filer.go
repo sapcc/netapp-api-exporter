@@ -1,8 +1,10 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"time"
@@ -11,11 +13,6 @@ import (
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/sharedfilesystems/v2/shares"
 	"github.com/pepabo/go-netapp/netapp"
-)
-
-const (
-	_url    = "https://%s/servlets/netapp.servlets.admin.XMLrequest_filer"
-	version = "1.7"
 )
 
 type Filer struct {
@@ -62,32 +59,63 @@ func NewFiler(name, host, username, password string) *Filer {
 }
 
 func (f *Filer) Init() {
-	url := fmt.Sprintf(_url, f.Host)
-	netappOpt := &netapp.ClientOptions{
-		BasicAuthUser:     f.Username,
-		BasicAuthPassword: f.Password,
+	f.NetappClient = newNetappClient(f.Host, f.Username, f.Password)
+
+	manilaClient, err := newManilaClient()
+	if err != nil {
+		log.Fatal(err)
+	}
+	f.OpenstackClient = manilaClient
+}
+
+func newNetappClient(host, username, password string) *netapp.Client {
+	_url := "https://%s/servlets/netapp.servlets.admin.XMLrequest_filer"
+	url := fmt.Sprintf(_url, host)
+
+	version := "1.7"
+
+	opts := &netapp.ClientOptions{
+		BasicAuthUser:     username,
+		BasicAuthPassword: password,
 		SSLVerify:         false,
 		Timeout:           30 * time.Second,
 	}
-	f.NetappClient = netapp.NewClient(url, version, netappOpt)
 
-	IDEndpoint := fmt.Sprintf("https://identity-3.%s.cloud.sap/v3", os.Getenv("OS_REGION"))
+	return netapp.NewClient(url, version, opts)
+}
 
-	osOpt := gophercloud.AuthOptions{
-		IdentityEndpoint: IDEndpoint,
-		DomainName:       "ccadmin",
-		TenantName:       "cloud_admin",
-		Username:         os.Getenv("OS_USERNAME"),
-		Password:         os.Getenv("OS_PASSWORD"),
-	}
+func newManilaClient() (*gophercloud.ServiceClient, error) {
+	region := os.Getenv("OS_REGION")
+	identityEndpoint := fmt.Sprintf("https://identity-3.%s.cloud.sap/v3", region)
 
-	provider, err := openstack.AuthenticatedClient(osOpt)
+	client, err := openstack.NewClient(identityEndpoint)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	eo := gophercloud.EndpointOpts{Region: os.Getenv("OS_REGION")}
-	f.OpenstackClient, err = openstack.NewSharedFileSystemV2(provider, eo)
+	config := &tls.Config{}
+	config.InsecureSkipVerify = true
+
+	transport := &http.Transport{Proxy: http.ProxyFromEnvironment, TLSClientConfig: config}
+	client.HTTPClient.Transport = transport
+
+	opts := gophercloud.AuthOptions{
+		// IdentityEndpoint: IDEndpoint,
+		DomainName: "ccadmin",
+		TenantName: "cloud_admin",
+		Username:   os.Getenv("OS_USERNAME"),
+		Password:   os.Getenv("OS_PASSWORD"),
+	}
+
+	err = openstack.Authenticate(client, opts)
+	if err != nil {
+		log.Printf("%+v", opts)
+		log.Fatal(err)
+	}
+
+	eo := gophercloud.EndpointOpts{Region: region}
+
+	return openstack.NewSharedFileSystemV2(client, eo)
 }
 
 func (f *Filer) GetManilaShare() map[string]ManilaShare {
