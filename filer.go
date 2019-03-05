@@ -178,13 +178,6 @@ func (f *Filer) GetManilaShare() (map[string]ManilaShare, error) {
 func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 	volumeOptions := netapp.VolumeOptions{
 		MaxRecords: 20,
-		Query: &netapp.VolumeQuery{
-			VolumeInfo: &netapp.VolumeInfo{
-				VolumeIDAttributes: &netapp.VolumeIDAttributes{
-					OwningVserverUUID: "x",
-				},
-			},
-		},
 		DesiredAttributes: &netapp.VolumeQuery{
 			VolumeInfo: &netapp.VolumeInfo{
 				VolumeIDAttributes: &netapp.VolumeIDAttributes{
@@ -211,6 +204,15 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 
 	volumePages := f.getNetappVolumePages(&volumeOptions, -1)
 	volumes := extracVolumes(volumePages)
+
+	if os.Getenv("INFO") != "" {
+		log.Printf("%d volume pages fetched", len(volumePages))
+		log.Printf("%d volumes extracted", len(volumes))
+		// if len(volumes) > 0 {
+		// 	log.Printf("%+v", volumes[0].VolumeIDAttributes)
+		// 	log.Printf("%+v", volumes[0].VolumeSpaceAttributes)
+		// }
+	}
 
 	for _, vol := range volumes {
 		nv := &NetappVolume{
@@ -241,6 +243,9 @@ func (f *Filer) getNetappVolumePages(opts *netapp.VolumeOptions, maxPage int) []
 
 	pageHandler := func(r netapp.VolumeListPagesResponse) bool {
 		if r.Error != nil {
+			if os.Getenv("INFO") != "" {
+				log.Printf("%s", r.Error)
+			}
 			return false
 		}
 
