@@ -7,12 +7,15 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/sharedfilesystems/v2/shares"
 	"github.com/pepabo/go-netapp/netapp"
+
+	"github.com/motemen/go-loghttp"
 )
 
 type Filer struct {
@@ -30,19 +33,23 @@ type FilerBase struct {
 }
 
 type ManilaShare struct {
-	ShareID    string
-	ShareName  string
-	ProjectId  string
-	InstanceID string
+	ShareID       string
+	ShareName     string
+	ShareServerID string
+	ProjectId     string
+	InstanceID    string
 }
 
 type NetappVolume struct {
-	Vserver            string
-	Volume             string
-	SizeTotal          float64
-	SizeAvailable      float64
-	SizeUsed           float64
-	PercentageSizeUsed float64
+	Vserver                           string
+	Volume                            string
+	SizeTotal                         float64
+	SizeAvailable                     float64
+	SizeUsed                          float64
+	PercentageSizeUsed                float64
+	PercentageCompressionSpaceSaved   float64
+	PercentageDeduplicationSpaceSaved float64
+	PercentageTotalSpaceSaved         float64
 }
 
 func NewFiler(name, host, username, password string) *Filer {
@@ -90,17 +97,25 @@ func newManilaClient() (*gophercloud.ServiceClient, error) {
 
 	client, err := openstack.NewClient(identityEndpoint)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	config := &tls.Config{}
 	config.InsecureSkipVerify = true
 
-	transport := &http.Transport{Proxy: http.ProxyFromEnvironment, TLSClientConfig: config}
+	var transport http.RoundTripper
+	if os.Getenv("DEBUG") != "" {
+		transport = &loghttp.Transport{
+			Transport:  &http.Transport{Proxy: http.ProxyFromEnvironment, TLSClientConfig: config},
+			LogRequest: logHttpRequestWithHeader,
+		}
+	} else {
+		transport = &http.Transport{Proxy: http.ProxyFromEnvironment, TLSClientConfig: config}
+	}
+
 	client.HTTPClient.Transport = transport
 
 	opts := gophercloud.AuthOptions{
-		// IdentityEndpoint: IDEndpoint,
 		DomainName: "ccadmin",
 		TenantName: "cloud_admin",
 		Username:   os.Getenv("OS_USERNAME"),
@@ -110,38 +125,54 @@ func newManilaClient() (*gophercloud.ServiceClient, error) {
 	err = openstack.Authenticate(client, opts)
 	if err != nil {
 		log.Printf("%+v", opts)
-		log.Fatal(err)
+		return nil, err
 	}
 
 	eo := gophercloud.EndpointOpts{Region: region}
 
-	return openstack.NewSharedFileSystemV2(client, eo)
+	manilaClient, err := openstack.NewSharedFileSystemV2(client, eo)
+	if err != nil {
+		return nil, err
+	}
+
+	manilaClient.Microversion = "2.46"
+	return manilaClient, nil
 }
 
-func (f *Filer) GetManilaShare() map[string]ManilaShare {
+func (f *Filer) GetManilaShare() (map[string]ManilaShare, error) {
 	lo := shares.ListOpts{AllTenants: true}
 	allpages, err := shares.ListDetail(f.OpenstackClient, lo).AllPages()
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	sh, err := shares.ExtractShares(allpages)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	r := make(map[string]ManilaShare)
-
 	for _, s := range sh {
-		// r[instance_id]
-		r[s.Name] = ManilaShare{
-			ShareID:   s.ID,
-			ShareName: s.Name,
-			ProjectId: s.ProjectID,
+
+		l, err := shares.GetExportLocations(f.OpenstackClient, s.ID).Extract()
+		if err != nil {
+			return nil, err
+		}
+
+		if len(l) > 0 {
+			siid := l[0].ShareInstanceID
+			siid = strings.Replace(siid, "-", "_", -1)
+			r[siid] = ManilaShare{
+				ShareID:       s.ID,
+				ShareName:     s.Name,
+				ShareServerID: s.ShareServerID,
+				ProjectId:     s.ProjectID,
+				InstanceID:    siid,
+			}
 		}
 	}
 
-	return r
+	return r, nil
 }
 
 func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
@@ -162,7 +193,7 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 	}
 
 	volumeOptions := netapp.VolumeOptions{
-		MaxRecords: 200,
+		MaxRecords: 500,
 		Query: &netapp.VolumeQuery{
 			VolumeInfo: &netapp.VolumeInfo{
 				VolumeIDAttributes: &netapp.VolumeIDAttributes{
@@ -185,6 +216,11 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 					SizeUsed:            "x",
 					SizeUsedBySnapshots: "x",
 					PercentageSizeUsed:  "x",
+				},
+				VolumeSisAttributes: &netapp.VolumeSisAttributes{
+					PercentageCompressionSpaceSaved:   "x",
+					PercentageDeduplicationSpaceSaved: "x",
+					PercentageTotalSpaceSaved:         "x",
 				},
 			},
 		},
@@ -210,4 +246,8 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 	}
 
 	return
+}
+
+func logHttpRequestWithHeader(req *http.Request) {
+	log.Printf("--> %s %s %s", req.Method, req.URL, req.Header)
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/sharedfilesystems/v2/shares"
 	"github.com/pepabo/go-netapp/netapp"
 
+	_ "github.com/motemen/go-loghttp/global"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -52,20 +53,15 @@ func TestNetappVolume(t *testing.T) {
 	r, _, _ := v.List(&p)
 
 	assert.True(t, r.Results.Passed())
+	assert.Equal(t, "", r.Results)
 	// assert.NotNil(t, r.Results)
 }
 
 func TestManilaClient(t *testing.T) {
 	var err error
 
-	// client.Endpoint = "http" + client.Endpoint[5:]
-	// a := "http://share-3.staging.cloud.sap/v2/6a030751147a45c0863c3b5bde32c744/shares/d23b86ed-62d8-4fc2-b29a-e378fe1fa1fe/export_locations"
-	// b := "http://share-3.staging.cloud.sap/v2/6a030751147a45c0863c3b5bde32c744/shares/d23b86ed-62d8-4fc2-b29a-e378fe1fa1fe/export_locations"
-	// assert.Equal(t, a, b)
-
 	client, err := newManilaClient()
 	if assert.Nil(t, err) {
-		// assert.Equal(t, "", client)
 
 		lo := shares.ListOpts{AllTenants: true}
 		allpages, err := shares.ListDetail(client, lo).AllPages()
@@ -82,10 +78,11 @@ func TestManilaClient(t *testing.T) {
 			// fmt.Printf("%T %+v", s, s)
 
 			sel, err := shares.GetExportLocations(client, s.ID).Extract()
-			fmt.Println(err.Error())
-			assert.Nil(t, err)
-			assert.Equal(t, "", sel)
-			// fmt.Println("ShareInstanceID\t", sel[0].ShareInstanceID)
+			if assert.Nil(t, err) {
+				if assert.NotNil(t, sel[0].ShareInstanceID) {
+					fmt.Println("ShareInstanceID\t", sel[0].ShareInstanceID)
+				}
+			}
 		}
 	}
 
@@ -93,6 +90,3 @@ func TestManilaClient(t *testing.T) {
 		assert.Equal(t, "", err.Error())
 	}
 }
-
-// /v2/ae63ddf2076d4342a56eb049e37a7621/shares/d23b86ed-62d8-4fc2-b29a-e378fe1fa1fe/export_location
-// https://share-3.staging.cloud.sap/v2/6a030751147a45c0863c3b5bde32c744/shares/d23b86ed-62d8-4fc2-b29a-e378fe1fa1fe/export_locations

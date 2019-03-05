@@ -35,8 +35,8 @@ func main() {
 
 	for _, f := range filers {
 		f.Init()
-		go p.runGetNetappShare(f, time.Duration(*sleepTime))
 		go p.runGetOSShare(f, 300)
+		go p.runGetNetappShare(f, time.Duration(*sleepTime))
 	}
 
 	prometheus.MustRegister(p.collector)

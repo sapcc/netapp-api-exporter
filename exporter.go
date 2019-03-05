@@ -36,19 +36,26 @@ func NewCapacityExporter() *CapacityExporter {
 }
 
 func (p *CapacityExporter) runGetNetappShare(f *Filer, t time.Duration) {
+	var projectID string
 
 	for {
 		netappVolumes, err := f.GetNetappVolume()
 		if err != nil {
-			log.Panic(err)
+			log.Println(err)
 		}
 
 		// projectId := p.share["maurice_test"].ProjectId
-		var projectID string
+
+		// log.Printf("%+v\n", p.share)
 
 		for _, d := range netappVolumes {
-			if strings.HasPrefix(d.Vserver, "ma_") {
-				projectID = "05f9781218b7401d9955f9b8a05a5aea"
+			if strings.HasPrefix(d.Vserver, "ma_") && strings.HasPrefix(d.Volume, "share_") {
+				siid := strings.TrimPrefix(d.Volume, "share_")
+				if share, ok := p.share[siid]; ok {
+					projectID = share.ProjectId
+					// log.Printf("%+v", share)
+					// log.Printf("%+v\n", d)
+				}
 			} else {
 				projectID = ""
 			}
@@ -65,7 +72,11 @@ func (p *CapacityExporter) runGetNetappShare(f *Filer, t time.Duration) {
 
 func (p *CapacityExporter) runGetOSShare(f *Filer, t time.Duration) {
 	for {
-		p.share = f.GetManilaShare()
+		s, err := f.GetManilaShare()
+		if err != nil {
+			log.Println(err)
+		}
+		p.share = s
 		time.Sleep(t * time.Second)
 	}
 }
