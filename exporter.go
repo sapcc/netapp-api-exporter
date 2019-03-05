@@ -44,10 +44,6 @@ func (p *CapacityExporter) runGetNetappShare(f *Filer, t time.Duration) {
 			log.Println(err)
 		}
 
-		// projectId := p.share["maurice_test"].ProjectId
-
-		// log.Printf("%+v\n", p.share)
-
 		for _, d := range netappVolumes {
 			if strings.HasPrefix(d.Vserver, "ma_") && strings.HasPrefix(d.Volume, "share_") {
 				siid := strings.TrimPrefix(d.Volume, "share_")
