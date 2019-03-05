@@ -176,31 +176,8 @@ func (f *Filer) GetManilaShare() (map[string]ManilaShare, error) {
 }
 
 func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
-
-	vserverOptions := netapp.VServerOptions{
-		Query: &netapp.VServerQuery{
-			VServerInfo: &netapp.VServerInfo{
-				VserverType: "cluster | data",
-			},
-		},
-		DesiredAttributes: &netapp.VServerQuery{
-			VServerInfo: &netapp.VServerInfo{
-				VserverName: "x",
-				UUID:        "x",
-			},
-		},
-		MaxRecords: 100,
-	}
-
 	volumeOptions := netapp.VolumeOptions{
-		MaxRecords: 500,
-		Query: &netapp.VolumeQuery{
-			VolumeInfo: &netapp.VolumeInfo{
-				VolumeIDAttributes: &netapp.VolumeIDAttributes{
-					OwningVserverUUID: "x",
-				},
-			},
-		},
+		MaxRecords: 20,
 		DesiredAttributes: &netapp.VolumeQuery{
 			VolumeInfo: &netapp.VolumeInfo{
 				VolumeIDAttributes: &netapp.VolumeIDAttributes{
@@ -209,7 +186,6 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 					OwningVserverUUID: "x",
 				},
 				VolumeSpaceAttributes: &netapp.VolumeSpaceAttributes{
-					//
 					Size:                1,
 					SizeTotal:           "x",
 					SizeAvailable:       "x",
@@ -226,23 +202,32 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 		},
 	}
 
-	vserverList, _, _ := f.NetappClient.VServer.List(&vserverOptions)
-	// fmt.Println("vserverList ", vserverList)
+	volumePages := f.getNetappVolumePages(&volumeOptions, -1)
+	volumes := extracVolumes(volumePages)
 
-	for _, vserver := range vserverList.Results.AttributesList.VserverInfo {
-		volumeOptions.Query.VolumeInfo.VolumeIDAttributes.OwningVserverUUID = vserver.UUID
-		vols, _, _ := f.NetappClient.Volume.List(&volumeOptions)
+	if os.Getenv("INFO") != "" {
+		log.Printf("%d volume pages fetched", len(volumePages))
+		log.Printf("%d volumes extracted", len(volumes))
+		// if len(volumes) > 0 {
+		// 	log.Printf("%+v", volumes[0].VolumeIDAttributes)
+		// 	log.Printf("%+v", volumes[0].VolumeSpaceAttributes)
+		// }
+	}
 
-		for _, vol := range vols.Results.AttributesList {
-			nv := &NetappVolume{Vserver: vserver.VserverName}
-			nv.Volume = vol.VolumeIDAttributes.Name
-			nv.SizeAvailable, err = strconv.ParseFloat(vol.VolumeSpaceAttributes.SizeAvailable, 64)
-			nv.SizeTotal, err = strconv.ParseFloat(vol.VolumeSpaceAttributes.SizeTotal, 64)
-			nv.SizeUsed, err = strconv.ParseFloat(vol.VolumeSpaceAttributes.SizeUsed, 64)
-			nv.PercentageSizeUsed, err = strconv.ParseFloat(vol.VolumeSpaceAttributes.PercentageSizeUsed, 64)
-
-			r = append(r, nv)
+	for _, vol := range volumes {
+		nv := &NetappVolume{
+			Vserver: vol.VolumeIDAttributes.OwningVserverName,
+			Volume:  vol.VolumeIDAttributes.Name,
 		}
+		nv.SizeAvailable, err = strconv.ParseFloat(vol.VolumeSpaceAttributes.SizeAvailable, 64)
+		nv.SizeTotal, err = strconv.ParseFloat(vol.VolumeSpaceAttributes.SizeTotal, 64)
+		nv.SizeUsed, err = strconv.ParseFloat(vol.VolumeSpaceAttributes.SizeUsed, 64)
+		nv.PercentageSizeUsed, err = strconv.ParseFloat(vol.VolumeSpaceAttributes.PercentageSizeUsed, 64)
+		nv.PercentageCompressionSpaceSaved, err = strconv.ParseFloat(vol.VolumeSisAttributes.PercentageCompressionSpaceSaved, 64)
+		nv.PercentageDeduplicationSpaceSaved, err = strconv.ParseFloat(vol.VolumeSisAttributes.PercentageDeduplicationSpaceSaved, 64)
+		nv.PercentageTotalSpaceSaved, err = strconv.ParseFloat(vol.VolumeSisAttributes.PercentageTotalSpaceSaved, 64)
+
+		r = append(r, nv)
 	}
 
 	return
@@ -250,4 +235,36 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 
 func logHttpRequestWithHeader(req *http.Request) {
 	log.Printf("--> %s %s %s", req.Method, req.URL, req.Header)
+}
+
+func (f *Filer) getNetappVolumePages(opts *netapp.VolumeOptions, maxPage int) []*netapp.VolumeListResponse {
+	var volumePages []*netapp.VolumeListResponse
+	var page int
+
+	pageHandler := func(r netapp.VolumeListPagesResponse) bool {
+		if r.Error != nil {
+			if os.Getenv("INFO") != "" {
+				log.Printf("%s", r.Error)
+			}
+			return false
+		}
+
+		volumePages = append(volumePages, r.Response)
+
+		page += 1
+		if maxPage > 0 && page >= maxPage {
+			return false
+		}
+		return true
+	}
+
+	f.NetappClient.Volume.ListPages(opts, pageHandler)
+	return volumePages
+}
+
+func extracVolumes(pages []*netapp.VolumeListResponse) (vols []netapp.VolumeInfo) {
+	for _, p := range pages {
+		vols = append(vols, p.Results.AttributesList...)
+	}
+	return
 }
