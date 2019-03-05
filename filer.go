@@ -176,24 +176,8 @@ func (f *Filer) GetManilaShare() (map[string]ManilaShare, error) {
 }
 
 func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
-
-	vserverOptions := netapp.VServerOptions{
-		Query: &netapp.VServerQuery{
-			VServerInfo: &netapp.VServerInfo{
-				VserverType: "cluster | data",
-			},
-		},
-		DesiredAttributes: &netapp.VServerQuery{
-			VServerInfo: &netapp.VServerInfo{
-				VserverName: "x",
-				UUID:        "x",
-			},
-		},
-		MaxRecords: 100,
-	}
-
 	volumeOptions := netapp.VolumeOptions{
-		MaxRecords: 500,
+		MaxRecords: 20,
 		Query: &netapp.VolumeQuery{
 			VolumeInfo: &netapp.VolumeInfo{
 				VolumeIDAttributes: &netapp.VolumeIDAttributes{
@@ -209,7 +193,6 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 					OwningVserverUUID: "x",
 				},
 				VolumeSpaceAttributes: &netapp.VolumeSpaceAttributes{
-					//
 					Size:                1,
 					SizeTotal:           "x",
 					SizeAvailable:       "x",
@@ -226,23 +209,23 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 		},
 	}
 
-	vserverList, _, _ := f.NetappClient.VServer.List(&vserverOptions)
-	// fmt.Println("vserverList ", vserverList)
+	volumePages := f.getNetappVolumePages(&volumeOptions, -1)
+	volumes := extracVolumes(volumePages)
 
-	for _, vserver := range vserverList.Results.AttributesList.VserverInfo {
-		volumeOptions.Query.VolumeInfo.VolumeIDAttributes.OwningVserverUUID = vserver.UUID
-		vols, _, _ := f.NetappClient.Volume.List(&volumeOptions)
-
-		for _, vol := range vols.Results.AttributesList {
-			nv := &NetappVolume{Vserver: vserver.VserverName}
-			nv.Volume = vol.VolumeIDAttributes.Name
-			nv.SizeAvailable, err = strconv.ParseFloat(vol.VolumeSpaceAttributes.SizeAvailable, 64)
-			nv.SizeTotal, err = strconv.ParseFloat(vol.VolumeSpaceAttributes.SizeTotal, 64)
-			nv.SizeUsed, err = strconv.ParseFloat(vol.VolumeSpaceAttributes.SizeUsed, 64)
-			nv.PercentageSizeUsed, err = strconv.ParseFloat(vol.VolumeSpaceAttributes.PercentageSizeUsed, 64)
-
-			r = append(r, nv)
+	for _, vol := range volumes {
+		nv := &NetappVolume{
+			Vserver: vol.VolumeIDAttributes.OwningVserverName,
+			Volume:  vol.VolumeIDAttributes.Name,
 		}
+		nv.SizeAvailable, err = strconv.ParseFloat(vol.VolumeSpaceAttributes.SizeAvailable, 64)
+		nv.SizeTotal, err = strconv.ParseFloat(vol.VolumeSpaceAttributes.SizeTotal, 64)
+		nv.SizeUsed, err = strconv.ParseFloat(vol.VolumeSpaceAttributes.SizeUsed, 64)
+		nv.PercentageSizeUsed, err = strconv.ParseFloat(vol.VolumeSpaceAttributes.PercentageSizeUsed, 64)
+		nv.PercentageCompressionSpaceSaved, err = strconv.ParseFloat(vol.VolumeSisAttributes.PercentageCompressionSpaceSaved, 64)
+		nv.PercentageDeduplicationSpaceSaved, err = strconv.ParseFloat(vol.VolumeSisAttributes.PercentageDeduplicationSpaceSaved, 64)
+		nv.PercentageTotalSpaceSaved, err = strconv.ParseFloat(vol.VolumeSisAttributes.PercentageTotalSpaceSaved, 64)
+
+		r = append(r, nv)
 	}
 
 	return
