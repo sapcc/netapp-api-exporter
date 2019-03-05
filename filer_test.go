@@ -57,6 +57,34 @@ func TestNetappVolume(t *testing.T) {
 	// assert.NotNil(t, r.Results)
 }
 
+func TestNetappVolumePage(t *testing.T) {
+	host := os.Getenv("NETAPP_HOST")
+	username := os.Getenv("NETAPP_USERNAME")
+	password := os.Getenv("NETAPP_PASSWORD")
+	c := NewFiler("testFiler", host, username, password)
+
+	opts := netapp.VolumeOptions{
+		MaxRecords: 10,
+	}
+
+	volumePages := c.getNetappVolumePages(&opts, 1)
+
+	vols := extracVolumes(volumePages)
+	if assert.NotNil(t, vols) {
+		vol := vols[0]
+		fmt.Println("# of Vols: ", len(vols))
+
+		fmt.Println("\nFirst volume:")
+		fmt.Println("Vserver\t\t", vol.VolumeIDAttributes.OwningVserverName)
+		fmt.Println("Name\t\t", vol.VolumeIDAttributes.Name)
+		fmt.Println("Type\t\t", vol.VolumeIDAttributes.Type)
+		fmt.Println("Node\t\t", vol.VolumeIDAttributes.Node)
+		fmt.Println("AvailableSize\t", vol.VolumeSpaceAttributes.SizeAvailable)
+		fmt.Println("Percentage\t", vol.VolumeSpaceAttributes.PercentageSizeUsed)
+
+	}
+}
+
 func TestManilaClient(t *testing.T) {
 	var err error
 

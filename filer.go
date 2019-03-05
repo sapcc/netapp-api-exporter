@@ -251,3 +251,32 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 func logHttpRequestWithHeader(req *http.Request) {
 	log.Printf("--> %s %s %s", req.Method, req.URL, req.Header)
 }
+
+func (f *Filer) getNetappVolumePages(opts *netapp.VolumeOptions, maxPage int) []*netapp.VolumeListResponse {
+	var volumePages []*netapp.VolumeListResponse
+	var page int
+
+	pageHandler := func(r netapp.VolumeListPagesResponse) bool {
+		if r.Error != nil {
+			return false
+		}
+
+		volumePages = append(volumePages, r.Response)
+
+		page += 1
+		if maxPage > 0 && page >= maxPage {
+			return false
+		}
+		return true
+	}
+
+	f.NetappClient.Volume.ListPages(opts, pageHandler)
+	return volumePages
+}
+
+func extracVolumes(pages []*netapp.VolumeListResponse) (vols []netapp.VolumeInfo) {
+	for _, p := range pages {
+		vols = append(vols, p.Results.AttributesList...)
+	}
+	return
+}
