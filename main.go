@@ -35,7 +35,7 @@ func main() {
 
 	for _, f := range filers {
 		f.Init()
-		go p.runGetOSShare(f, 300)
+		go p.runGetOSShare(f, time.Duration(*sleepTime))
 		go p.runGetNetappShare(f, time.Duration(*sleepTime))
 	}
 

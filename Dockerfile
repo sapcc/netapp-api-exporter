@@ -8,6 +8,7 @@ FROM alpine:3.5
 #     && GOPATH=/go CGO_ENABLED=0 go install -v ./... \
 #     && mv /go/bin/gotee /usr/local/bin \
 #     && apk del go musl-dev git mercurial
+ENV INFO=1
 
 WORKDIR /app
 COPY netapp-api-exporter /app/

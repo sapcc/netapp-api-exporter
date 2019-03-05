@@ -151,6 +151,10 @@ func (f *Filer) GetManilaShare() (map[string]ManilaShare, error) {
 		return nil, err
 	}
 
+	if os.Getenv("INFO") != "" {
+		log.Printf("%d Manila Shares fetched", len(sh))
+	}
+
 	r := make(map[string]ManilaShare)
 	for _, s := range sh {
 
