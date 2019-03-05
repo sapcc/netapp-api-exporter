@@ -36,30 +36,28 @@ func NewCapacityExporter() *CapacityExporter {
 }
 
 func (p *CapacityExporter) runGetNetappShare(f *Filer, t time.Duration) {
-	var projectID string
-
 	for {
 		netappVolumes, err := f.GetNetappVolume()
 		if err != nil {
 			log.Println(err)
 		}
 
-		for _, d := range netappVolumes {
-			if strings.HasPrefix(d.Vserver, "ma_") && strings.HasPrefix(d.Volume, "share_") {
-				siid := strings.TrimPrefix(d.Volume, "share_")
+		for _, v := range netappVolumes {
+			projectID := ""
+
+			if strings.HasPrefix(v.Vserver, "ma_") && strings.HasPrefix(v.Volume, "share_") {
+				siid := strings.TrimPrefix(v.Volume, "share_")
 				if share, ok := p.share[siid]; ok {
 					projectID = share.ProjectId
 					// log.Printf("%+v", share)
 					// log.Printf("%+v\n", d)
 				}
-			} else {
-				projectID = ""
 			}
 
-			netappCapacity.WithLabelValues(projectID, f.Name, d.Vserver, d.Volume, "total").Set(d.SizeTotal)
-			netappCapacity.WithLabelValues(projectID, f.Name, d.Vserver, d.Volume, "available").Set(d.SizeAvailable)
-			netappCapacity.WithLabelValues(projectID, f.Name, d.Vserver, d.Volume, "used").Set(d.SizeUsed)
-			netappCapacity.WithLabelValues(projectID, f.Name, d.Vserver, d.Volume, "percentage_used").Set(d.PercentageSizeUsed)
+			netappCapacity.WithLabelValues(projectID, f.Name, v.Vserver, v.Volume, "total").Set(v.SizeTotal)
+			netappCapacity.WithLabelValues(projectID, f.Name, v.Vserver, v.Volume, "available").Set(v.SizeAvailable)
+			netappCapacity.WithLabelValues(projectID, f.Name, v.Vserver, v.Volume, "used").Set(v.SizeUsed)
+			netappCapacity.WithLabelValues(projectID, f.Name, v.Vserver, v.Volume, "percentage_used").Set(v.PercentageSizeUsed)
 		}
 
 		time.Sleep(t * time.Second)
