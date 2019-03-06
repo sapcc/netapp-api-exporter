@@ -5,7 +5,7 @@ VERSION=v0.1
 
 build:
 	GOOS=$(OS) GOARCH=$(ARCH) go build
-	docker build -t $(IMAGE):$(VERSION) . 
+	docker build --build-arg OS_USERNAME=${OS_USERNAME} --build-arg OS_PASSWORD=${OS_PASSWORD} -t $(IMAGE):$(VERSION) . 
 
 push:
 	docker push $(IMAGE):$(VERSION)
