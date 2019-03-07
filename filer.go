@@ -22,12 +22,11 @@ type Filer struct {
 	FilerBase
 	NetappClient    *netapp.Client
 	OpenstackClient *gophercloud.ServiceClient
-	// Share           *ProjectShareMap
 }
 
 type FilerBase struct {
 	Name     string `yaml:"name"`
-	Host     string `yaml:"ip"`
+	Host     string `yaml:"host"`
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
 }
