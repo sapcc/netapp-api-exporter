@@ -16,7 +16,7 @@ import (
 // Parameter
 var (
 	sleepTime     = kingpin.Flag("wait", "Wait time").Short('w').Default("300").Int64()
-	configFile    = kingpin.Flag("config", "Config file").Short('f').Default("./netapp_filers.yaml").String()
+	configFile    = kingpin.Flag("config", "Config file").Short('c').Default("./netapp_filers.yaml").String()
 	listenAddress = kingpin.Flag("listen", "Listen address").Short('l').Default("0.0.0.0").String()
 )
 
