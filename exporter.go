@@ -19,7 +19,7 @@ var (
 		[]string{
 			"project_id",
 			"filer",
-			"svm",
+			"vserver",
 			"volume",
 			"metric",
 		},
