@@ -24,12 +24,12 @@ Provide list of netapp filers in configuration file "netapp_filers.yaml" and run
 ```
 
 ### Parameters
-* -c, --config sets the configuration file for netapp filers. Default value is `netapp_filers.yaml`. It should in the following format,
+* -c, --config sets the configuration file for netapp filers. Default value is `netapp_filers.yaml`. The configuration file should in the following format,
 ```
-  - name: xxxx
-    host: netapp-bb98.labx.company
-    username: <username>
-    password: <password>
+- name: xxxx
+  host: netapp-bb98.labx.company
+  username: <username>
+  password: <password>
 ```
 * -w, --wait sets the time in seconds to wait between each query to the netapp filer. Default value is `300`.
 * -l, --listen sets the allowed listen address. Default is `0.0.0.0`.
