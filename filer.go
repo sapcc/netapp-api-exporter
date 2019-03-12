@@ -53,12 +53,6 @@ func NewFiler(name, host, username, password string) *Filer {
 
 func (f *Filer) Init() {
 	f.NetappClient = newNetappClient(f.Host, f.Username, f.Password)
-
-	manilaClient, err := newManilaClient()
-	if err != nil {
-		log.Fatal(err)
-	}
-	f.OpenstackClient = manilaClient
 }
 
 func newNetappClient(host, username, password string) *netapp.Client {
