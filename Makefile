@@ -8,7 +8,9 @@ build:
 	docker build -t $(IMAGE):$(VERSION) . 
 
 push:
+	docker tag $(IMAGE):$(VERSION) $(IMAGE):latest
 	docker push $(IMAGE):$(VERSION)
+	docker push $(IMAGE):latest
 
 test:
 	GOOS=darwin GOARCH=$(ARCH) go build
