@@ -2,7 +2,7 @@ package main
 
 import (
 	"log"
-	"strings"
+	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -18,6 +18,7 @@ var (
 		},
 		[]string{
 			"project_id",
+			"share_id",
 			"filer",
 			"vserver",
 			"volume",
@@ -43,21 +44,22 @@ func (p *CapacityExporter) runGetNetappShare(f *Filer, t time.Duration) {
 		}
 
 		for _, v := range netappVolumes {
-			projectID := ""
 
-			if strings.HasPrefix(v.Vserver, "ma_") && strings.HasPrefix(v.Volume, "share_") {
-				siid := strings.TrimPrefix(v.Volume, "share_")
-				if share, ok := p.share[siid]; ok {
-					projectID = share.ProjectId
-					// log.Printf("%+v", share)
-					// log.Printf("%+v\n", d)
-				}
-			}
+			_SizeAvailable, _ := strconv.ParseFloat(v.SizeAvailable, 64)
+			_SizeTotal, _ := strconv.ParseFloat(v.SizeTotal, 64)
+			_SizeUsed, _ := strconv.ParseFloat(v.SizeUsed, 64)
+			_PercentageSizeUsed, _ := strconv.ParseFloat(v.PercentageSizeUsed, 64)
+			_PercentageCompressionSpaceSaved, _ := strconv.ParseFloat(v.PercentageCompressionSpaceSaved, 64)
+			_PercentageDeduplicationSpaceSaved, _ := strconv.ParseFloat(v.PercentageDeduplicationSpaceSaved, 64)
+			_PercentageTotalSpaceSaved, _ := strconv.ParseFloat(v.PercentageTotalSpaceSaved, 64)
 
-			netappCapacity.WithLabelValues(projectID, f.Name, v.Vserver, v.Volume, "total").Set(v.SizeTotal)
-			netappCapacity.WithLabelValues(projectID, f.Name, v.Vserver, v.Volume, "available").Set(v.SizeAvailable)
-			netappCapacity.WithLabelValues(projectID, f.Name, v.Vserver, v.Volume, "used").Set(v.SizeUsed)
-			netappCapacity.WithLabelValues(projectID, f.Name, v.Vserver, v.Volume, "percentage_used").Set(v.PercentageSizeUsed)
+			netappCapacity.WithLabelValues(v.ProjectID, v.ShareID, f.Name, v.Vserver, v.Volume, "total").Set(_SizeTotal)
+			netappCapacity.WithLabelValues(v.ProjectID, v.ShareID, f.Name, v.Vserver, v.Volume, "available").Set(_SizeAvailable)
+			netappCapacity.WithLabelValues(v.ProjectID, v.ShareID, f.Name, v.Vserver, v.Volume, "used").Set(_SizeUsed)
+			netappCapacity.WithLabelValues(v.ProjectID, v.ShareID, f.Name, v.Vserver, v.Volume, "percentage_used").Set(_PercentageSizeUsed)
+			netappCapacity.WithLabelValues(v.ProjectID, v.ShareID, f.Name, v.Vserver, v.Volume, "percentage_compression_saved").Set(_PercentageCompressionSpaceSaved)
+			netappCapacity.WithLabelValues(v.ProjectID, v.ShareID, f.Name, v.Vserver, v.Volume, "percentage_deduplication_saved").Set(_PercentageDeduplicationSpaceSaved)
+			netappCapacity.WithLabelValues(v.ProjectID, v.ShareID, f.Name, v.Vserver, v.Volume, "percentage_total_saved").Set(_PercentageTotalSpaceSaved)
 		}
 
 		time.Sleep(t * time.Second)

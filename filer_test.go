@@ -39,7 +39,7 @@ func TestNetappVserver(t *testing.T) {
 	assert.NotNil(t, r.Results.AttributesList.VserverInfo[0])
 }
 
-func TestNetappVolume(t *testing.T) {
+func TestNetappClient(t *testing.T) {
 	host := os.Getenv("NETAPP_HOST")
 	username := os.Getenv("NETAPP_USERNAME")
 	password := os.Getenv("NETAPP_PASSWORD")
@@ -53,11 +53,10 @@ func TestNetappVolume(t *testing.T) {
 	r, _, _ := v.List(&p)
 
 	assert.True(t, r.Results.Passed())
-	assert.Equal(t, "", r.Results)
-	// assert.NotNil(t, r.Results)
+	assert.NotNil(t, r.Results)
 }
 
-func TestNetappVolumePage(t *testing.T) {
+func TestNetappVolume(t *testing.T) {
 	host := os.Getenv("NETAPP_HOST")
 	username := os.Getenv("NETAPP_USERNAME")
 	password := os.Getenv("NETAPP_PASSWORD")
@@ -68,20 +67,21 @@ func TestNetappVolumePage(t *testing.T) {
 	}
 
 	volumePages := c.getNetappVolumePages(&opts, 1)
-
 	vols := extracVolumes(volumePages)
+
 	if assert.NotNil(t, vols) {
-		vol := vols[0]
 		fmt.Println("# of Vols: ", len(vols))
 
-		fmt.Println("\nFirst volume:")
-		fmt.Println("Vserver\t\t", vol.VolumeIDAttributes.OwningVserverName)
-		fmt.Println("Name\t\t", vol.VolumeIDAttributes.Name)
-		fmt.Println("Type\t\t", vol.VolumeIDAttributes.Type)
-		fmt.Println("Node\t\t", vol.VolumeIDAttributes.Node)
-		fmt.Println("AvailableSize\t", vol.VolumeSpaceAttributes.SizeAvailable)
-		fmt.Println("Percentage\t", vol.VolumeSpaceAttributes.PercentageSizeUsed)
-
+		for i, vol := range vols {
+			fmt.Println("\nVolume: ", i)
+			fmt.Println("Name\t\t", vol.VolumeIDAttributes.Name)
+			fmt.Println("Type\t\t", vol.VolumeIDAttributes.Type)
+			fmt.Println("Comment\t\t", vol.VolumeIDAttributes.Comment)
+			fmt.Println("Node\t\t", vol.VolumeIDAttributes.Node)
+			fmt.Println("Vserver\t\t", vol.VolumeIDAttributes.OwningVserverName)
+			fmt.Println("AvailableSize\t", vol.VolumeSpaceAttributes.SizeAvailable)
+			fmt.Println("Percentage\t", vol.VolumeSpaceAttributes.PercentageSizeUsed)
+		}
 	}
 }
 
