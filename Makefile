@@ -3,14 +3,18 @@ OS=linux
 IMAGE=mx3d/netapp-api-exporter
 VERSION=v0.1
 
-build:
+netapp-api-exporter: *.go
+	@echo "[INFO] build go excutable for $(ARCH)"
 	GOOS=$(OS) GOARCH=$(ARCH) go build
+
+.PHONY: build
+build: netapp-api-exporter
+	@echo "[INFO] build docker image"
 	docker build -t $(IMAGE):$(VERSION) . 
 
-push:
+.PHONY: push
+push: build
+	@echo "[INFO] push docker image"
 	docker tag $(IMAGE):$(VERSION) $(IMAGE):latest
 	docker push $(IMAGE):$(VERSION)
 	docker push $(IMAGE):latest
-
-test:
-	GOOS=darwin GOARCH=$(ARCH) go build
