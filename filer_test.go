@@ -118,3 +118,25 @@ func TestManilaClient(t *testing.T) {
 		assert.Equal(t, "", err.Error())
 	}
 }
+
+func TestParseComment(t *testing.T) {
+	var str, id, name, project string
+
+	str = "share_id: 12345-abcdef, project: abc123"
+	id, name, project = parseComment(str)
+	assert.Equal(t, "12345-abcdef", id)
+	assert.Equal(t, "", name)
+	assert.Equal(t, "abc123", project)
+
+	str = "share_name: ca-ab_def, share_id: 12345-abcdef, project: abc123"
+	id, name, project = parseComment(str)
+	assert.Equal(t, "12345-abcdef", id)
+	assert.Equal(t, "ca-ab_def", name)
+	assert.Equal(t, "abc123", project)
+
+	str = "share_id: 12345-abcdef, share_name: test_share, project: abc123"
+	id, name, project = parseComment(str)
+	assert.Equal(t, "12345-abcdef", id)
+	assert.Equal(t, "test_share", name)
+	assert.Equal(t, "abc123", project)
+}

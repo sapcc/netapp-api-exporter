@@ -26,6 +26,7 @@ type FilerBase struct {
 
 type NetappVolume struct {
 	ShareID                           string
+	ShareName                         string
 	ProjectID                         string
 	Vserver                           string
 	Volume                            string
@@ -124,7 +125,7 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 			PercentageTotalSpaceSaved:         vol.VolumeSisAttributes.PercentageTotalSpaceSaved,
 		}
 
-		nv.ShareID, nv.ProjectID = parseComment(vol.VolumeIDAttributes.Comment)
+		nv.ShareID, nv.ShareName, nv.ProjectID = parseComment(vol.VolumeIDAttributes.Comment)
 
 		r = append(r, nv)
 	}
@@ -132,16 +133,20 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 	return
 }
 
-func parseComment(c string) (shareID string, projectID string) {
-	r := regexp.MustCompile(`share_id:[[:space:]](?P<id>[\-0-9a-z]+).*project:[[:space:]]([0-9a-z]+)`)
+func parseComment(c string) (shareID string, shareName string, projectID string) {
+	// r := regexp.MustCompile(`(share_id:[[:space:]](?P<id>[\-0-9a-z]+))?.*(share_name: (?P<name>[0-9a-zA-Z_]+))?.*(project:[[:space:]](?P<project>[0-9a-z]+))?`)
+	// r := regexp.MustCompile(`(share_id: (?P<id>[\-0-9a-z]+))?.*share_name: (?P<name>[0-9A-Za-z_\-]+).* project: (?P<project>\w+)`)
+	r := regexp.MustCompile(`((?P<k1>\w+): (?P<v1>[\w-]+))(, ((?P<k2>\w+): (?P<v2>[\w-]+))(, ((?P<k3>\w+): (?P<v3>[\w-]+)))?)?`)
 	matches := r.FindStringSubmatch(c)
 
 	for i, m := range matches {
-		switch i {
-		case 1:
-			shareID = m
-		case 2:
-			projectID = m
+		switch m {
+		case "share_id":
+			shareID = matches[i+1]
+		case "share_name":
+			shareName = matches[i+1]
+		case "project":
+			projectID = matches[i+1]
 		}
 	}
 
