@@ -28,9 +28,13 @@ type NetappVolume struct {
 	ProjectID                         string
 	Vserver                           string
 	Volume                            string
+	Size                              int
 	SizeTotal                         string
 	SizeAvailable                     string
 	SizeUsed                          string
+	SizeUsedBySnapshots               string
+	SizeAvailableForSnapshots         string
+	SnapshotReserveSize               string
 	PercentageSizeUsed                string
 	PercentageCompressionSpaceSaved   string
 	PercentageDeduplicationSpaceSaved string
@@ -82,12 +86,14 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 					Comment:           "x",
 				},
 				VolumeSpaceAttributes: &netapp.VolumeSpaceAttributes{
-					Size:                1,
-					SizeTotal:           "x",
-					SizeAvailable:       "x",
-					SizeUsed:            "x",
-					SizeUsedBySnapshots: "x",
-					PercentageSizeUsed:  "x",
+					Size:                      1,
+					SizeTotal:                 "x",
+					SizeAvailable:             "x",
+					SizeUsed:                  "x",
+					SizeUsedBySnapshots:       "x",
+					SizeAvailableForSnapshots: "x",
+					SnapshotReserveSize:       "x",
+					PercentageSizeUsed:        "x",
 				},
 				VolumeSisAttributes: &netapp.VolumeSisAttributes{
 					PercentageCompressionSpaceSaved:   "x",
@@ -109,12 +115,16 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 
 	for _, vol := range volumes {
 		nv := &NetappVolume{
-			Vserver:            vol.VolumeIDAttributes.OwningVserverName,
-			Volume:             vol.VolumeIDAttributes.Name,
-			SizeAvailable:      vol.VolumeSpaceAttributes.SizeAvailable,
-			SizeTotal:          vol.VolumeSpaceAttributes.SizeTotal,
-			SizeUsed:           vol.VolumeSpaceAttributes.SizeUsed,
-			PercentageSizeUsed: vol.VolumeSpaceAttributes.PercentageSizeUsed,
+			Vserver:                   vol.VolumeIDAttributes.OwningVserverName,
+			Volume:                    vol.VolumeIDAttributes.Name,
+			Size:                      vol.VolumeSpaceAttributes.Size,
+			SizeAvailable:             vol.VolumeSpaceAttributes.SizeAvailable,
+			SizeTotal:                 vol.VolumeSpaceAttributes.SizeTotal,
+			SizeUsed:                  vol.VolumeSpaceAttributes.SizeUsed,
+			SizeUsedBySnapshots:       vol.VolumeSpaceAttributes.SizeUsedBySnapshots,
+			SizeAvailableForSnapshots: vol.VolumeSpaceAttributes.SizeAvailableForSnapshots,
+			SnapshotReserveSize:       vol.VolumeSpaceAttributes.SnapshotReserveSize,
+			PercentageSizeUsed:        vol.VolumeSpaceAttributes.PercentageSizeUsed,
 		}
 		if vol.VolumeSisAttributes != nil {
 			nv.PercentageCompressionSpaceSaved = vol.VolumeSisAttributes.PercentageCompressionSpaceSaved
