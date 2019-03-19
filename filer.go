@@ -101,26 +101,28 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 	volumePages := f.getNetappVolumePages(&volumeOptions, -1)
 	volumes := extracVolumes(volumePages)
 
-	if os.Getenv("INFO") != "" {
-		log.Printf("%d volume pages fetched", len(volumePages))
-		log.Printf("%d volumes extracted", len(volumes))
-		// if len(volumes) > 0 {
-		// 	log.Printf("%+v", volumes[0].VolumeIDAttributes)
-		// 	log.Printf("%+v", volumes[0].VolumeSpaceAttributes)
-		// }
-	}
+	log.Printf("%s: %d (%d) volumes fetched", f.Host, len(volumes), len(volumePages))
+	// if len(volumes) > 0 {
+	// 	log.Printf("%+v", volumes[0].VolumeIDAttributes)
+	// 	log.Printf("%+v", volumes[0].VolumeSpaceAttributes)
+	// }
 
 	for _, vol := range volumes {
 		nv := &NetappVolume{
-			Vserver:                           vol.VolumeIDAttributes.OwningVserverName,
-			Volume:                            vol.VolumeIDAttributes.Name,
-			SizeAvailable:                     vol.VolumeSpaceAttributes.SizeAvailable,
-			SizeTotal:                         vol.VolumeSpaceAttributes.SizeTotal,
-			SizeUsed:                          vol.VolumeSpaceAttributes.SizeUsed,
-			PercentageSizeUsed:                vol.VolumeSpaceAttributes.PercentageSizeUsed,
-			PercentageCompressionSpaceSaved:   vol.VolumeSisAttributes.PercentageCompressionSpaceSaved,
-			PercentageDeduplicationSpaceSaved: vol.VolumeSisAttributes.PercentageDeduplicationSpaceSaved,
-			PercentageTotalSpaceSaved:         vol.VolumeSisAttributes.PercentageTotalSpaceSaved,
+			Vserver:            vol.VolumeIDAttributes.OwningVserverName,
+			Volume:             vol.VolumeIDAttributes.Name,
+			SizeAvailable:      vol.VolumeSpaceAttributes.SizeAvailable,
+			SizeTotal:          vol.VolumeSpaceAttributes.SizeTotal,
+			SizeUsed:           vol.VolumeSpaceAttributes.SizeUsed,
+			PercentageSizeUsed: vol.VolumeSpaceAttributes.PercentageSizeUsed,
+		}
+		if vol.VolumeSisAttributes != nil {
+			nv.PercentageCompressionSpaceSaved = vol.VolumeSisAttributes.PercentageCompressionSpaceSaved
+			nv.PercentageDeduplicationSpaceSaved = vol.VolumeSisAttributes.PercentageDeduplicationSpaceSaved
+			nv.PercentageTotalSpaceSaved = vol.VolumeSisAttributes.PercentageTotalSpaceSaved
+		} else {
+			log.Printf("%s has no VolumeSisAttributes", vol.VolumeIDAttributes.Name)
+			log.Debugf("%+v", vol.VolumeIDAttributes)
 		}
 
 		if vol.VolumeIDAttributes.Comment == "" {
