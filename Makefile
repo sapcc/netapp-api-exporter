@@ -18,3 +18,8 @@ push: build
 	docker tag $(IMAGE):$(VERSION) $(IMAGE):latest
 	docker push $(IMAGE):$(VERSION)
 	docker push $(IMAGE):latest
+
+.PHONY: dev
+dev: 
+	go build
+	DEV=1 ./netapp-api-exporter -l localhost -w 30
