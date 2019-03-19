@@ -140,23 +140,27 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 }
 
 func parseComment(c string) (shareID string, shareName string, projectID string) {
-	// r := regexp.MustCompile(`(share_id:[[:space:]](?P<id>[\-0-9a-z]+))?.*(share_name: (?P<name>[0-9a-zA-Z_]+))?.*(project:[[:space:]](?P<project>[0-9a-z]+))?`)
-	// r := regexp.MustCompile(`(share_id: (?P<id>[\-0-9a-z]+))?.*share_name: (?P<name>[0-9A-Za-z_\-]+).* project: (?P<project>\w+)`)
-	r := regexp.MustCompile(`((?P<k1>\w+): (?P<v1>[\w-]+))(, ((?P<k2>\w+): (?P<v2>[\w-]+))(, ((?P<k3>\w+): (?P<v3>[\w-]+)))?)?`)
+	// r := regexp.MustCompile(`((?P<k1>\w+): (?P<v1>[\w-]+))(, ((?P<k2>\w+): (?P<v2>[\w-]+))(, ((?P<k3>\w+): (?P<v3>[\w-]+)))?)?`)
+	// matches := r.FindStringSubmatch(c)
 
-	matches := r.FindStringSubmatch(c)
+	r := regexp.MustCompile(`(\w+): ([\w-]+)`)
+	matches := r.FindAllStringSubmatch(c, 3)
 
-	for i, m := range matches {
-		switch m {
+	for _, m := range matches {
+		switch m[1] {
 		case "share_id":
-			shareID = matches[i+1]
+			shareID = m[2]
 		case "share_name":
-			shareName = matches[i+1]
+			shareName = m[2]
 		case "project":
-			projectID = matches[i+1]
+			projectID = m[2]
 		}
 	}
 
+	if shareID == "" || projectID == "" {
+		log.Warnf("Failed to parse share_id/project from '%s'", c)
+	}
+	log.Debugln(c, "---", shareID, shareName, projectID)
 	return
 }
 
