@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"os"
 	"regexp"
 	"time"
 
@@ -125,7 +123,13 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 			PercentageTotalSpaceSaved:         vol.VolumeSisAttributes.PercentageTotalSpaceSaved,
 		}
 
-		nv.ShareID, nv.ShareName, nv.ProjectID = parseComment(vol.VolumeIDAttributes.Comment)
+		if vol.VolumeIDAttributes.Comment == "" {
+			if vol.VolumeIDAttributes.Name != "root" {
+				log.Printf("%s (%s) does not have comment", vol.VolumeIDAttributes.Name, vol.VolumeIDAttributes.OwningVserverName)
+			}
+		} else {
+			nv.ShareID, nv.ShareName, nv.ProjectID = parseComment(vol.VolumeIDAttributes.Comment)
+		}
 
 		r = append(r, nv)
 	}
@@ -137,6 +141,7 @@ func parseComment(c string) (shareID string, shareName string, projectID string)
 	// r := regexp.MustCompile(`(share_id:[[:space:]](?P<id>[\-0-9a-z]+))?.*(share_name: (?P<name>[0-9a-zA-Z_]+))?.*(project:[[:space:]](?P<project>[0-9a-z]+))?`)
 	// r := regexp.MustCompile(`(share_id: (?P<id>[\-0-9a-z]+))?.*share_name: (?P<name>[0-9A-Za-z_\-]+).* project: (?P<project>\w+)`)
 	r := regexp.MustCompile(`((?P<k1>\w+): (?P<v1>[\w-]+))(, ((?P<k2>\w+): (?P<v2>[\w-]+))(, ((?P<k3>\w+): (?P<v3>[\w-]+)))?)?`)
+
 	matches := r.FindStringSubmatch(c)
 
 	for i, m := range matches {
@@ -159,9 +164,7 @@ func (f *Filer) getNetappVolumePages(opts *netapp.VolumeOptions, maxPage int) []
 
 	pageHandler := func(r netapp.VolumeListPagesResponse) bool {
 		if r.Error != nil {
-			if os.Getenv("INFO") != "" {
-				log.Printf("%s", r.Error)
-			}
+			log.Printf("%s", r.Error)
 			return false
 		}
 

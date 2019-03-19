@@ -1,14 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -18,17 +19,32 @@ var (
 	sleepTime     = kingpin.Flag("wait", "Wait time").Short('w').Default("300").Int64()
 	configFile    = kingpin.Flag("config", "Config file").Short('c').Default("./netapp_filers.yaml").String()
 	listenAddress = kingpin.Flag("listen", "Listen address").Short('l').Default("0.0.0.0").String()
+	log           = logrus.New()
 )
+
+type myFormatter struct{}
 
 func main() {
 	var filers []*Filer
 
 	kingpin.Parse()
 
+	log.Out = os.Stdout
+	log.SetFormatter(new(myFormatter))
+	// log.SetFormatter(&logrus.TextFormatter{
+	// 	DisableColors: true,
+	// })
+
 	if os.Getenv("DEV") != "" {
+		log.Level = logrus.DebugLevel
 		filers = loadFilerFromEnv()
 	} else {
+		log.Level = logrus.InfoLevel
 		filers = loadFilerFromFile(*configFile)
+	}
+
+	for _, f := range filers {
+		log.Printf("Host (%s) loaded", f.Host)
 	}
 
 	p := NewCapacityExporter()
@@ -66,4 +82,14 @@ func loadFilerFromEnv() (c []*Filer) {
 	f := NewFiler("test", host, username, password)
 	c = append(c, f)
 	return
+}
+
+func (f *myFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	s := fmt.Sprintf("%s [%s] %s\t", entry.Time.Format("2006-01-02 15:04:05.000"), entry.Level, entry.Message)
+	for k, v := range entry.Data {
+		s1 := fmt.Sprintf(" %s=%s", k, v)
+		s = s + s1
+	}
+	s = s + "\n"
+	return []byte(s), nil
 }
