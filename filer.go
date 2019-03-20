@@ -101,10 +101,10 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 	volumePages := f.getNetappVolumePages(&volumeOptions, -1)
 	volumes := extracVolumes(volumePages)
 
-	log.Printf("%s: %d (%d) volumes fetched", f.Host, len(volumes), len(volumePages))
+	logger.Printf("%s: %d (%d) volumes fetched", f.Host, len(volumes), len(volumePages))
 	// if len(volumes) > 0 {
-	// 	log.Printf("%+v", volumes[0].VolumeIDAttributes)
-	// 	log.Printf("%+v", volumes[0].VolumeSpaceAttributes)
+	// 	logger.Printf("%+v", volumes[0].VolumeIDAttributes)
+	// 	logger.Printf("%+v", volumes[0].VolumeSpaceAttributes)
 	// }
 
 	for _, vol := range volumes {
@@ -121,13 +121,13 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 			nv.PercentageDeduplicationSpaceSaved = vol.VolumeSisAttributes.PercentageDeduplicationSpaceSaved
 			nv.PercentageTotalSpaceSaved = vol.VolumeSisAttributes.PercentageTotalSpaceSaved
 		} else {
-			log.Printf("%s has no VolumeSisAttributes", vol.VolumeIDAttributes.Name)
-			log.Debugf("%+v", vol.VolumeIDAttributes)
+			logger.Printf("%s has no VolumeSisAttributes", vol.VolumeIDAttributes.Name)
+			logger.Debugf("%+v", vol.VolumeIDAttributes)
 		}
 
 		if vol.VolumeIDAttributes.Comment == "" {
 			if vol.VolumeIDAttributes.Name != "root" {
-				log.Printf("%s (%s) does not have comment", vol.VolumeIDAttributes.Name, vol.VolumeIDAttributes.OwningVserverName)
+				logger.Printf("%s (%s) does not have comment", vol.VolumeIDAttributes.Name, vol.VolumeIDAttributes.OwningVserverName)
 			}
 		} else {
 			nv.ShareID, nv.ShareName, nv.ProjectID = parseComment(vol.VolumeIDAttributes.Comment)
@@ -158,9 +158,9 @@ func parseComment(c string) (shareID string, shareName string, projectID string)
 	}
 
 	if shareID == "" || projectID == "" {
-		log.Warnf("Failed to parse share_id/project from '%s'", c)
+		logger.Warnf("Failed to parse share_id/project from '%s'", c)
 	}
-	log.Debugln(c, "---", shareID, shareName, projectID)
+	logger.Debugln(c, "---", shareID, shareName, projectID)
 	return
 }
 
@@ -170,7 +170,7 @@ func (f *Filer) getNetappVolumePages(opts *netapp.VolumeOptions, maxPage int) []
 
 	pageHandler := func(r netapp.VolumeListPagesResponse) bool {
 		if r.Error != nil {
-			log.Printf("%s", r.Error)
+			logger.Printf("%s", r.Error)
 			return false
 		}
 

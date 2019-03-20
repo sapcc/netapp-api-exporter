@@ -39,7 +39,7 @@ func (p *CapacityExporter) runGetNetappShare(f *Filer, t time.Duration) {
 	for {
 		netappVolumes, err := f.GetNetappVolume()
 		if err != nil {
-			log.Println(err)
+			logger.Println(err)
 		}
 
 		for _, v := range netappVolumes {
@@ -69,7 +69,7 @@ func (p *CapacityExporter) runGetOSShare(f *Filer, t time.Duration) {
 	for {
 		s, err := f.GetManilaShare()
 		if err != nil {
-			log.Println(err)
+			logger.Println(err)
 		}
 		p.share = s
 		time.Sleep(t * time.Second)

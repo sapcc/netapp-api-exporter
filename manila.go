@@ -54,7 +54,7 @@ func newManilaClient() (*gophercloud.ServiceClient, error) {
 
 	err = openstack.Authenticate(client, opts)
 	if err != nil {
-		log.Printf("%+v", opts)
+		logger.Printf("%+v", opts)
 		return nil, err
 	}
 
@@ -81,7 +81,7 @@ func (f *Filer) GetManilaShare() (map[string]ManilaShare, error) {
 		return nil, err
 	}
 
-	log.Printf("%d Manila Shares fetched", len(sh))
+	logger.Printf("%d Manila Shares fetched", len(sh))
 
 	r := make(map[string]ManilaShare)
 	for _, s := range sh {
@@ -108,5 +108,5 @@ func (f *Filer) GetManilaShare() (map[string]ManilaShare, error) {
 }
 
 func logHttpRequestWithHeader(req *http.Request) {
-	log.Printf("--> %s %s %s", req.Method, req.URL, req.Header)
+	logger.Printf("--> %s %s %s", req.Method, req.URL, req.Header)
 }

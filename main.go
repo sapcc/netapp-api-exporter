@@ -19,7 +19,7 @@ var (
 	sleepTime     = kingpin.Flag("wait", "Wait time").Short('w').Default("300").Int64()
 	configFile    = kingpin.Flag("config", "Config file").Short('c').Default("./netapp_filers.yaml").String()
 	listenAddress = kingpin.Flag("listen", "Listen address").Short('l').Default("0.0.0.0").String()
-	log           = logrus.New()
+	logger        = logrus.New()
 )
 
 type myFormatter struct{}
@@ -29,22 +29,22 @@ func main() {
 
 	kingpin.Parse()
 
-	log.Out = os.Stdout
-	log.SetFormatter(new(myFormatter))
-	// log.SetFormatter(&logrus.TextFormatter{
+	logger.Out = os.Stdout
+	logger.SetFormatter(new(myFormatter))
+	// logger.SetFormatter(&logrus.TextFormatter{
 	// 	DisableColors: true,
 	// })
 
 	if os.Getenv("DEV") != "" {
-		log.Level = logrus.DebugLevel
+		logger.Level = logrus.DebugLevel
 		filers = loadFilerFromEnv()
 	} else {
-		log.Level = logrus.InfoLevel
+		logger.Level = logrus.InfoLevel
 		filers = loadFilerFromFile(*configFile)
 	}
 
 	for _, f := range filers {
-		log.Printf("Host (%s) loaded", f.Host)
+		logger.Printf("Host (%s) loaded", f.Host)
 	}
 
 	p := NewCapacityExporter()
@@ -63,11 +63,11 @@ func loadFilerFromFile(fileName string) (c []*Filer) {
 	var fb []FilerBase
 	yamlFile, err := ioutil.ReadFile(fileName)
 	if err != nil {
-		log.Fatal("[ERROR] ", err)
+		logger.Fatal("[ERROR] ", err)
 	}
 	err = yaml.Unmarshal(yamlFile, &fb)
 	if err != nil {
-		log.Fatal("[ERROR] ", err)
+		logger.Fatal("[ERROR] ", err)
 	}
 	for _, b := range fb {
 		c = append(c, &Filer{FilerBase: b})
