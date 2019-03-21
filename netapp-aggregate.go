@@ -8,7 +8,7 @@ import (
 	"github.com/pepabo/go-netapp/netapp"
 )
 
-type NetappAggr struct {
+type Aggregate struct {
 	Name                string
 	SizeUsed            int
 	SizeTotal           int
@@ -18,18 +18,24 @@ type NetappAggr struct {
 	PhysicalUsedPercent int
 }
 
-func (f *Filer) GetAggrData() (r []NetappAggr) {
+func (f *Filer) GetAggrData() (r []Aggregate) {
+	ff := new(bool)
+	*ff = false
 	opts := &netapp.AggrOptions{
+		Query: &netapp.AggrInfo{
+			AggrRaidAttributes: &netapp.AggrRaidAttributes{
+				IsRootAggregate: ff,
+			},
+		},
 		DesiredAttributes: &netapp.AggrInfo{
 			AggrSpaceAttributes: &netapp.AggrSpaceAttributes{},
 		},
 	}
 
 	l := f.getAggrList(opts)
-	fmt.Printf("%+v\n", l[0])
 
 	for _, n := range l {
-		r = append(r, NetappAggr{
+		r = append(r, Aggregate{
 			Name:                n.AggregateName,
 			SizeUsed:            n.AggrSpaceAttributes.SizeUsed,
 			SizeTotal:           n.AggrSpaceAttributes.SizeTotal,
