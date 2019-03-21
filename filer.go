@@ -20,6 +20,7 @@ type FilerBase struct {
 	Host     string `yaml:"host"`
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
+	Region   string `yaml:"region"`
 }
 
 type NetappVolume struct {
@@ -41,13 +42,14 @@ type NetappVolume struct {
 	PercentageTotalSpaceSaved         string
 }
 
-func NewFiler(name, host, username, password string) *Filer {
+func NewFiler(name, host, username, password, region string) *Filer {
 	f := &Filer{
 		FilerBase: FilerBase{
 			Name:     name,
 			Host:     host,
 			Username: username,
 			Password: password,
+			Region:   region,
 		},
 	}
 	f.Init()

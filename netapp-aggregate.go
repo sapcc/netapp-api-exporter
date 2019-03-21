@@ -18,7 +18,7 @@ type Aggregate struct {
 	PhysicalUsedPercent int
 }
 
-func (f *Filer) GetAggrData() (r []Aggregate) {
+func (f *Filer) GetAggrData() (r []*Aggregate) {
 	ff := new(bool)
 	*ff = false
 	opts := &netapp.AggrOptions{
@@ -35,7 +35,7 @@ func (f *Filer) GetAggrData() (r []Aggregate) {
 	l := f.getAggrList(opts)
 
 	for _, n := range l {
-		r = append(r, Aggregate{
+		r = append(r, &Aggregate{
 			Name:                n.AggregateName,
 			SizeUsed:            n.AggrSpaceAttributes.SizeUsed,
 			SizeTotal:           n.AggrSpaceAttributes.SizeTotal,

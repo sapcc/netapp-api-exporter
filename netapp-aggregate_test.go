@@ -12,7 +12,8 @@ func TestNetappAggregate(t *testing.T) {
 	host := os.Getenv("NETAPP_HOST")
 	username := os.Getenv("NETAPP_USERNAME")
 	password := os.Getenv("NETAPP_PASSWORD")
-	f := NewFiler("test", host, username, password)
+	region := os.Getenv("NETAPP_REGION")
+	f := NewFiler("test", host, username, password, region)
 
 	l := f.GetAggrData()
 	n := l[2]

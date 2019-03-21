@@ -52,9 +52,11 @@ func main() {
 	for _, f := range filers {
 		f.Init()
 		go p.runGetNetappShare(f, time.Duration(*sleepTime))
+		go p.runGetNetappAggregate(f, time.Duration(*sleepTime))
 	}
 
-	prometheus.MustRegister(p.collector)
+	prometheus.MustRegister(p.volumeCollector)
+	prometheus.MustRegister(p.aggregateCollector)
 	http.Handle("/metrics", promhttp.Handler())
 	http.ListenAndServe(*listenAddress+":9108", nil)
 }
@@ -79,7 +81,8 @@ func loadFilerFromEnv() (c []*Filer) {
 	host := os.Getenv("NETAPP_HOST")
 	username := os.Getenv("NETAPP_USERNAME")
 	password := os.Getenv("NETAPP_PASSWORD")
-	f := NewFiler("test", host, username, password)
+	region := os.Getenv("NETAPP_REGION")
+	f := NewFiler("test", host, username, password, region)
 	c = append(c, f)
 	return
 }
