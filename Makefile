@@ -1,14 +1,15 @@
 ARCH=amd64
 OS=linux
 IMAGE=mx3d/netapp-api-exporter
-VERSION=v0.1
+#VERSION=v0.1
+VERSION:=v$(shell date -u +%Y%m%d%H%M%S)
 
-netapp-api-exporter: *.go
-	@echo "[INFO] build go excutable for $(ARCH)"
-	GOOS=$(OS) GOARCH=$(ARCH) go build
+#netapp-api-exporter:
 
 .PHONY: build
 build: netapp-api-exporter
+	@echo "[INFO] build go excutable for $(ARCH)"
+	GOOS=$(OS) GOARCH=$(ARCH) go build
 	@echo "[INFO] build docker image"
 	docker build -t $(IMAGE):$(VERSION) . 
 
