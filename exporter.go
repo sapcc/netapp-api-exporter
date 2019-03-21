@@ -93,7 +93,7 @@ func (p *CapacityExporter) runGetNetappShare(f *Filer, t time.Duration) {
 func (p *CapacityExporter) runGetNetappAggregate(f *Filer, t time.Duration) {
 	for {
 		aggrList := f.GetAggrData()
-		region := ""
+		region := f.Region
 
 		for _, v := range aggrList {
 			_percentrageUsed, _ := strconv.ParseFloat(v.PercentUsedCapacity, 64)
