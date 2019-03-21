@@ -35,6 +35,7 @@ var (
 		[]string{
 			"region",
 			"filer",
+			"node",
 			"aggregate",
 			"metric",
 		},
@@ -97,10 +98,13 @@ func (p *CapacityExporter) runGetNetappAggregate(f *Filer, t time.Duration) {
 
 		for _, v := range aggrList {
 			_percentrageUsed, _ := strconv.ParseFloat(v.PercentUsedCapacity, 64)
-			aggregateCapacity.WithLabelValues(region, f.Name, v.Name, "size_used").Set(float64(v.SizeUsed))
-			aggregateCapacity.WithLabelValues(region, f.Name, v.Name, "size_available").Set(float64(v.SizeAvailable))
-			aggregateCapacity.WithLabelValues(region, f.Name, v.Name, "size_total").Set(float64(v.SizeTotal))
-			aggregateCapacity.WithLabelValues(region, f.Name, v.Name, "percentage_used").Set(_percentrageUsed)
+			aggregateCapacity.WithLabelValues(region, f.Name, v.OwnerName, v.Name, "size_used").Set(float64(v.SizeUsed))
+			aggregateCapacity.WithLabelValues(region, f.Name, v.OwnerName, v.Name, "size_available").Set(float64(v.SizeAvailable))
+			aggregateCapacity.WithLabelValues(region, f.Name, v.OwnerName, v.Name, "size_total").Set(float64(v.SizeTotal))
+			aggregateCapacity.WithLabelValues(region, f.Name, v.OwnerName, v.Name, "size_total").Set(float64(v.SizeTotal))
+			aggregateCapacity.WithLabelValues(region, f.Name, v.OwnerName, v.Name, "percentage_used").Set(_percentrageUsed)
+			aggregateCapacity.WithLabelValues(region, f.Name, v.OwnerName, v.Name, "physical_used").Set(float64(v.PhysicalUsed))
+			aggregateCapacity.WithLabelValues(region, f.Name, v.OwnerName, v.Name, "physical_used_percent").Set(float64(v.PhysicalUsedPercent))
 		}
 
 		time.Sleep(t * time.Second)

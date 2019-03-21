@@ -10,11 +10,13 @@ import (
 
 type Aggregate struct {
 	Name                string
+	OwnerName           string
 	SizeUsed            int
 	SizeTotal           int
 	SizeAvailable       int
 	TotalReservedSpace  int
 	PercentUsedCapacity string
+	PhysicalUsed        int
 	PhysicalUsedPercent int
 }
 
@@ -28,7 +30,8 @@ func (f *Filer) GetAggrData() (r []*Aggregate) {
 			},
 		},
 		DesiredAttributes: &netapp.AggrInfo{
-			AggrSpaceAttributes: &netapp.AggrSpaceAttributes{},
+			AggrOwnershipAttributes: &netapp.AggrOwnershipAttributes{},
+			AggrSpaceAttributes:     &netapp.AggrSpaceAttributes{},
 		},
 	}
 
@@ -37,11 +40,13 @@ func (f *Filer) GetAggrData() (r []*Aggregate) {
 	for _, n := range l {
 		r = append(r, &Aggregate{
 			Name:                n.AggregateName,
+			OwnerName:           n.AggrOwnershipAttributes.OwnerName,
 			SizeUsed:            n.AggrSpaceAttributes.SizeUsed,
 			SizeTotal:           n.AggrSpaceAttributes.SizeTotal,
 			SizeAvailable:       n.AggrSpaceAttributes.SizeAvailable,
 			TotalReservedSpace:  n.AggrSpaceAttributes.TotalReservedSpace,
 			PercentUsedCapacity: n.AggrSpaceAttributes.PercentUsedCapacity,
+			PhysicalUsed:        n.AggrSpaceAttributes.PhysicalUsed,
 			PhysicalUsedPercent: n.AggrSpaceAttributes.PhysicalUsedPercent,
 		})
 	}
