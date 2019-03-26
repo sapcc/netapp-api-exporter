@@ -60,8 +60,8 @@ func TestNetappVolume(t *testing.T) {
 	host := os.Getenv("NETAPP_HOST")
 	username := os.Getenv("NETAPP_USERNAME")
 	password := os.Getenv("NETAPP_PASSWORD")
-	region := os.Getenv("NETAPP_REGION")
-	c := NewFiler("testFiler", host, username, password, region)
+	az := os.Getenv("NETAPP_AZ")
+	c := NewFiler("testFiler", host, username, password, az)
 
 	opts := netapp.VolumeOptions{
 		MaxRecords: 10,

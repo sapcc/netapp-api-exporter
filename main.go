@@ -81,8 +81,8 @@ func loadFilerFromEnv() (c []*Filer) {
 	host := os.Getenv("NETAPP_HOST")
 	username := os.Getenv("NETAPP_USERNAME")
 	password := os.Getenv("NETAPP_PASSWORD")
-	region := os.Getenv("NETAPP_REGION")
-	f := NewFiler("test", host, username, password, region)
+	az := os.Getenv("NETAPP_AZ")
+	f := NewFiler("test", host, username, password, az)
 	c = append(c, f)
 	return
 }

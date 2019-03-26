@@ -33,7 +33,7 @@ var (
 			Help:      "Netapp aggregate capacity",
 		},
 		[]string{
-			"region",
+			"availability_zone",
 			"filer",
 			"node",
 			"aggregate",
@@ -94,17 +94,16 @@ func (p *CapacityExporter) runGetNetappShare(f *Filer, t time.Duration) {
 func (p *CapacityExporter) runGetNetappAggregate(f *Filer, t time.Duration) {
 	for {
 		aggrList := f.GetAggrData()
-		region := f.Region
 
 		for _, v := range aggrList {
 			_percentrageUsed, _ := strconv.ParseFloat(v.PercentUsedCapacity, 64)
-			aggregateCapacity.WithLabelValues(region, f.Name, v.OwnerName, v.Name, "size_used").Set(float64(v.SizeUsed))
-			aggregateCapacity.WithLabelValues(region, f.Name, v.OwnerName, v.Name, "size_available").Set(float64(v.SizeAvailable))
-			aggregateCapacity.WithLabelValues(region, f.Name, v.OwnerName, v.Name, "size_total").Set(float64(v.SizeTotal))
-			aggregateCapacity.WithLabelValues(region, f.Name, v.OwnerName, v.Name, "size_total").Set(float64(v.SizeTotal))
-			aggregateCapacity.WithLabelValues(region, f.Name, v.OwnerName, v.Name, "percentage_used").Set(_percentrageUsed)
-			aggregateCapacity.WithLabelValues(region, f.Name, v.OwnerName, v.Name, "physical_used").Set(float64(v.PhysicalUsed))
-			aggregateCapacity.WithLabelValues(region, f.Name, v.OwnerName, v.Name, "physical_used_percent").Set(float64(v.PhysicalUsedPercent))
+			aggregateCapacity.WithLabelValues(f.AvailabilityZone, f.Name, v.OwnerName, v.Name, "size_used").Set(float64(v.SizeUsed))
+			aggregateCapacity.WithLabelValues(f.AvailabilityZone, f.Name, v.OwnerName, v.Name, "size_available").Set(float64(v.SizeAvailable))
+			aggregateCapacity.WithLabelValues(f.AvailabilityZone, f.Name, v.OwnerName, v.Name, "size_total").Set(float64(v.SizeTotal))
+			aggregateCapacity.WithLabelValues(f.AvailabilityZone, f.Name, v.OwnerName, v.Name, "size_total").Set(float64(v.SizeTotal))
+			aggregateCapacity.WithLabelValues(f.AvailabilityZone, f.Name, v.OwnerName, v.Name, "percentage_used").Set(_percentrageUsed)
+			aggregateCapacity.WithLabelValues(f.AvailabilityZone, f.Name, v.OwnerName, v.Name, "physical_used").Set(float64(v.PhysicalUsed))
+			aggregateCapacity.WithLabelValues(f.AvailabilityZone, f.Name, v.OwnerName, v.Name, "physical_used_percent").Set(float64(v.PhysicalUsedPercent))
 		}
 
 		time.Sleep(t * time.Second)
