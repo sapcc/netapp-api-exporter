@@ -107,7 +107,7 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 	}
 
 	volumePages := f.getNetappVolumePages(&volumeOptions, -1)
-	volumes := extracVolumes(volumePages)
+	volumes := extractVolumes(volumePages)
 
 	logger.Printf("%s: %d (%d) volumes fetched", f.Host, len(volumes), len(volumePages))
 	// if len(volumes) > 0 {
@@ -199,7 +199,7 @@ func (f *Filer) getNetappVolumePages(opts *netapp.VolumeOptions, maxPage int) []
 	return volumePages
 }
 
-func extracVolumes(pages []*netapp.VolumeListResponse) (vols []netapp.VolumeInfo) {
+func extractVolumes(pages []*netapp.VolumeListResponse) (vols []netapp.VolumeInfo) {
 	for _, p := range pages {
 		vols = append(vols, p.Results.AttributesList...)
 	}

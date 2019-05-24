@@ -68,7 +68,7 @@ func TestNetappVolume(t *testing.T) {
 	}
 
 	volumePages := c.getNetappVolumePages(&opts, 1)
-	vols := extracVolumes(volumePages)
+	vols := extractVolumes(volumePages)
 
 	if assert.NotNil(t, vols) {
 		fmt.Println("# of Vols: ", len(vols))
