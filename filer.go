@@ -5,14 +5,12 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/gophercloud/gophercloud"
 	"github.com/pepabo/go-netapp/netapp"
 )
 
 type Filer struct {
 	FilerBase
-	NetappClient    *netapp.Client
-	OpenstackClient *gophercloud.ServiceClient
+	NetappClient *netapp.Client
 }
 
 type FilerBase struct {

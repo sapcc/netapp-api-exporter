@@ -45,7 +45,6 @@ var (
 type CapacityExporter struct {
 	volumeCollector    prometheus.Collector
 	aggregateCollector prometheus.Collector
-	share              map[string]ManilaShare
 }
 
 func NewCapacityExporter() *CapacityExporter {
@@ -106,17 +105,6 @@ func (p *CapacityExporter) runGetNetappAggregate(f *Filer, t time.Duration) {
 			aggregateCapacity.WithLabelValues(f.AvailabilityZone, f.Name, v.OwnerName, v.Name, "physical_used_percent").Set(float64(v.PhysicalUsedPercent))
 		}
 
-		time.Sleep(t * time.Second)
-	}
-}
-
-func (p *CapacityExporter) runGetOSShare(f *Filer, t time.Duration) {
-	for {
-		s, err := f.GetManilaShare()
-		if err != nil {
-			logger.Println(err)
-		}
-		p.share = s
 		time.Sleep(t * time.Second)
 	}
 }
