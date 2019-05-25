@@ -2,6 +2,7 @@ package main
 
 import (
 	"regexp"
+	"strings"
 
 	"github.com/pepabo/go-netapp/netapp"
 )
@@ -59,23 +60,24 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 	volumes := extractVolumes(volumePages)
 
 	logger.Printf("%s: %d (%d) volumes fetched", f.Host, len(volumes), len(volumePages))
-	// if len(volumes) > 0 {
-	// 	logger.Printf("%+v", volumes[0].VolumeIDAttributes)
-	// 	logger.Printf("%+v", volumes[0].VolumeSpaceAttributes)
-	// }
 
 	for _, vol := range volumes {
-		nv := &NetappVolume{
-			Vserver:                   vol.VolumeIDAttributes.OwningVserverName,
-			Volume:                    vol.VolumeIDAttributes.Name,
-			Size:                      vol.VolumeSpaceAttributes.Size,
-			SizeAvailable:             vol.VolumeSpaceAttributes.SizeAvailable,
-			SizeTotal:                 vol.VolumeSpaceAttributes.SizeTotal,
-			SizeUsed:                  vol.VolumeSpaceAttributes.SizeUsed,
-			SizeUsedBySnapshots:       vol.VolumeSpaceAttributes.SizeUsedBySnapshots,
-			SizeAvailableForSnapshots: vol.VolumeSpaceAttributes.SizeAvailableForSnapshots,
-			SnapshotReserveSize:       vol.VolumeSpaceAttributes.SnapshotReserveSize,
-			PercentageSizeUsed:        vol.VolumeSpaceAttributes.PercentageSizeUsed,
+		nv := &NetappVolume{}
+		if vol.VolumeIDAttributes != nil {
+			nv.Vserver = vol.VolumeIDAttributes.OwningVserverName
+			nv.Volume = vol.VolumeIDAttributes.Name
+		}
+		if vol.VolumeSpaceAttributes != nil {
+			nv.Size = vol.VolumeSpaceAttributes.Size
+			nv.SizeAvailable = vol.VolumeSpaceAttributes.SizeAvailable
+			nv.SizeTotal = vol.VolumeSpaceAttributes.SizeTotal
+			nv.SizeUsed = vol.VolumeSpaceAttributes.SizeUsed
+			nv.SizeUsedBySnapshots = vol.VolumeSpaceAttributes.SizeUsedBySnapshots
+			nv.SizeAvailableForSnapshots = vol.VolumeSpaceAttributes.SizeAvailableForSnapshots
+			nv.SnapshotReserveSize = vol.VolumeSpaceAttributes.SnapshotReserveSize
+			nv.PercentageSizeUsed = vol.VolumeSpaceAttributes.PercentageSizeUsed
+		} else {
+			logger.Printf("%s has no VolumeSpaceAttributes", nv.Volume)
 		}
 		if vol.VolumeSisAttributes != nil {
 			nv.PercentageCompressionSpaceSaved = vol.VolumeSisAttributes.PercentageCompressionSpaceSaved
@@ -85,18 +87,16 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 			logger.Printf("%s has no VolumeSisAttributes", vol.VolumeIDAttributes.Name)
 			logger.Debugf("%+v", vol.VolumeIDAttributes)
 		}
-
 		if vol.VolumeIDAttributes.Comment == "" {
-			if vol.VolumeIDAttributes.Name != "root" {
+			if !strings.Contains(vol.VolumeIDAttributes.Name, "root") &&
+				!strings.Contains(vol.VolumeIDAttributes.Name, "vol0") {
 				logger.Printf("%s (%s) does not have comment", vol.VolumeIDAttributes.Name, vol.VolumeIDAttributes.OwningVserverName)
 			}
 		} else {
 			nv.ShareID, nv.ShareName, nv.ProjectID = parseVolumeComment(vol.VolumeIDAttributes.Comment)
 		}
-
 		r = append(r, nv)
 	}
-
 	return
 }
 
