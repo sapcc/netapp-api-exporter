@@ -1,20 +1,22 @@
-ARCH=amd64
-OS=linux
-IMAGE=mx3d/netapp-api-exporter
-#VERSION=v0.1
+app=netapp-api-exporter
+IMAGE=hub.global.cloud.sap/monsoon/${app}
 VERSION:=v$(shell date -u +%Y%m%d%H%M%S)
 
 #netapp-api-exporter:
 
 .PHONY: build
-build: netapp-api-exporter
-	@echo "[INFO] build go excutable for $(ARCH)"
-	GOOS=$(OS) GOARCH=$(ARCH) go build
+build: bin/${app}_linux_amd64 bin/${app}_darwin_amd64
+
+bin/${app}_linux_amd64: *.go
+	GOOS=linux GOARCH=amd64 go build -o $@
+
+bin/${app}_darwin_amd64: *.go
+	GOOS=darwin GOARCH=amd64 go build -o $@
+
+.PHONY: docker
+docker: bin/${app}_linux_amd64
 	@echo "[INFO] build docker image"
 	docker build -t $(IMAGE):$(VERSION) . 
-
-.PHONY: push
-push: build
 	@echo "[INFO] push docker image"
 	docker tag $(IMAGE):$(VERSION) $(IMAGE):latest
 	docker push $(IMAGE):$(VERSION)
@@ -22,5 +24,12 @@ push: build
 
 .PHONY: dev
 dev: 
-	go build
-	DEV=1 ./netapp-api-exporter -l localhost -w 30
+	rm -f bin/${app}_dev
+	go build -o bin/${app}_dev
+	DEV=1 ./bin/${app}_dev -l localhost -w 30
+
+.PHONY: clean
+clean:
+	rm -f bin/${app}_linux_amd64
+	rm -f bin/${app}_darwin_amd64
+	rm -f bin/${app}_dev
