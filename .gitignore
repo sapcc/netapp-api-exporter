@@ -1,4 +1,5 @@
 .DS_Store
+.env
 .envrc
 .staging
 .qa-de-1
