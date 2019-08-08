@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/gophercloud/gophercloud/openstack/sharedfilesystems/v2/shares"
 	"github.com/pepabo/go-netapp/netapp"
 
 	_ "github.com/motemen/go-loghttp/global"
@@ -83,40 +82,6 @@ func TestNetappVolume(t *testing.T) {
 			fmt.Println("AvailableSize\t", vol.VolumeSpaceAttributes.SizeAvailable)
 			fmt.Println("Percentage\t", vol.VolumeSpaceAttributes.PercentageSizeUsed)
 		}
-	}
-}
-
-func TestManilaClient(t *testing.T) {
-	var err error
-
-	client, err := newManilaClient()
-	if assert.Nil(t, err) {
-
-		lo := shares.ListOpts{AllTenants: true}
-		allpages, err := shares.ListDetail(client, lo).AllPages()
-		if assert.Nil(t, err) {
-
-			sh, _ := shares.ExtractShares(allpages)
-			s := sh[0]
-			fmt.Println("ID\t\t", s.ID)
-			fmt.Println("Name\t\t", s.Name)
-			fmt.Println("ProjectID\t", s.ProjectID)
-			fmt.Println("ShareServerID\t", s.ShareServerID)
-			fmt.Println("ShareType\t", s.ShareType)
-			fmt.Println("AvailabilityZone", s.AvailabilityZone)
-			// fmt.Printf("%T %+v", s, s)
-
-			sel, err := shares.GetExportLocations(client, s.ID).Extract()
-			if assert.Nil(t, err) {
-				if assert.NotNil(t, sel[0].ShareInstanceID) {
-					fmt.Println("ShareInstanceID\t", sel[0].ShareInstanceID)
-				}
-			}
-		}
-	}
-
-	if err != nil {
-		assert.Equal(t, "", err.Error())
 	}
 }
 
