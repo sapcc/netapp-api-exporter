@@ -152,6 +152,6 @@ func parseVolumeComment(c string) (shareID string, shareName string, projectID s
 	if shareID == "" || projectID == "" {
 		logger.Warnf("Failed to parse share_id/project from '%s'", c)
 	}
-	logger.Debugln(c, "---", shareID, shareName, projectID)
+	// logger.Debugln(c, "---", shareID, shareName, projectID)
 	return
 }

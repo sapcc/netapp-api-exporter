@@ -26,7 +26,7 @@ var (
 
 type myFormatter struct{}
 
-func main() {
+func init() {
 	kingpin.Parse()
 
 	logger.Out = os.Stdout
@@ -41,6 +41,9 @@ func main() {
 	for _, f := range filers {
 		logger.Printf("Host (%s) loaded", f.Host)
 	}
+}
+
+func main() {
 
 	p := NewCapacityExporter()
 	for _, f := range filers {
