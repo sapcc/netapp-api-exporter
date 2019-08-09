@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -47,15 +48,8 @@ func main() {
 	volumeGV := NewVolumeGaugeVec()
 	aggrGV := NewAggrGaugeVec()
 
-	// volContext, volCancel := context.WithCancel(context.Background())
-	cancelGetVolChan := make(chan struct{})
-	cancelSetVolChan := make(chan struct{})
-	// cancelAggrChan := make(chan struct{})
-	defer func() {
-		cancelGetVolChan <- struct{}{}
-		cancelSetVolChan <- struct{}{}
-		// cancelAggrChan <- struct{}{}
-	}()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	volChan := make(chan *NetappVolume)
 	doneGetVolChan := make(chan struct{})
@@ -63,21 +57,22 @@ func main() {
 	// aggrChan := make(chan *Aggregate)
 	// doneGetAggrChan := make(chan struct{})
 
-	go func() {
+	go func(ctx context.Context) {
 		for {
 			select {
-			case <-cancelGetVolChan:
+			case <-ctx.Done():
 				return
 			default:
-				for _, f := range filers {
-					f.GetNetappVolume(volChan, doneGetVolChan)
-				}
+			}
+			for _, f := range filers {
+				f.GetNetappVolume(volChan, doneGetVolChan)
+				// f.GetAggrData()
 			}
 			time.Sleep(time.Duration(*sleepTime) * time.Second)
 		}
-	}()
+	}(ctx)
 
-	go func() {
+	go func(ctx context.Context) {
 		rcvdVolumes := make(map[string]*NetappVolume)
 		volumes := make(map[string]bool)
 		for {
@@ -99,11 +94,11 @@ func main() {
 				for shareID, _ := range volumes {
 					volumes[shareID] = false
 				}
-			case <-cancelSetVolChan:
+			case <-ctx.Done():
 				return
 			}
 		}
-	}()
+	}(ctx)
 
 	prometheus.MustRegister(volumeGV)
 	prometheus.MustRegister(aggrGV)
