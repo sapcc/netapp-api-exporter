@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -45,6 +46,56 @@ func init() {
 func main() {
 	volumeGV := NewVolumeGaugeVec()
 	aggrGV := NewAggrGaugeVec()
+
+	cancelVolChan := make(chan struct{})
+	cancelAggrChan := make(chan struct{})
+	defer func() {
+		cancelVolChan <- struct{}{}
+		cancelAggrChan <- struct{}{}
+	}()
+
+	volChan := make(chan *NetappVolume)
+	doneGetVolChan := make(chan struct{})
+
+	go func() {
+		for {
+			select {
+			case <-cancelVolChan:
+				return
+			default:
+				for _, f := range filers {
+					f.GetNetappVolume(volChan, doneGetVolChan)
+				}
+			}
+			time.Sleep(time.Duration(*sleepTime) * time.Second)
+		}
+	}()
+
+	go func() {
+		rcvdVolumes := make(map[string]*NetappVolume)
+		volumes := make(map[string]bool)
+		for {
+			select {
+			case v := <-volChan:
+				volumeGV.SetMetric(v)
+				rcvdVolumes[v.ShareID] = v
+				volumes[v.ShareID] = true
+			case <-doneGetVolChan:
+				for shareID, ok := range volumes {
+					if !ok {
+						volumeGV.DeleteMetric(rcvdVolumes[shareID])
+						delete(rcvdVolumes, shareID)
+						delete(volumes, shareID)
+					}
+				}
+				for shareID, _ := range volumes {
+					volumes[shareID] = false
+				}
+			case <-cancelVolChan:
+				return
+			}
+		}
+	}()
 
 	// p := NewCapacityExporter()
 	// for _, f := range filers {

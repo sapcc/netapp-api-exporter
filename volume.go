@@ -27,7 +27,7 @@ type NetappVolume struct {
 	PercentageTotalSpaceSaved         string
 }
 
-func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
+func (f *Filer) GetNetappVolume(r chan<- *NetappVolume, done chan<- struct{}) {
 	volumeOptions := netapp.VolumeOptions{
 		MaxRecords: 20,
 		DesiredAttributes: &netapp.VolumeQuery{
@@ -96,9 +96,10 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 		} else {
 			nv.ShareID, nv.ShareName, nv.ProjectID = parseVolumeComment(vol.VolumeIDAttributes.Comment)
 		}
-		r = append(r, nv)
+		r <- nv
 	}
-	return
+
+	done <- struct{}{}
 }
 
 func (f *Filer) getNetappVolumePages(opts *netapp.VolumeOptions, maxPage int) []*netapp.VolumeListResponse {
