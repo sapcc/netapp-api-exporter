@@ -7,40 +7,49 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var (
-	volumeCapacity = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: "netapp",
-			Subsystem: "capacity",
-			Name:      "svm",
-			Help:      "netapp SVM capacity",
-		},
-		[]string{
-			"project_id",
-			"share_id",
-			"filer",
-			"vserver",
-			"volume",
-			"metric",
-		},
-	)
+type VolumeGaugeVec struct{ *prometheus.GaugeVec }
+type AggrGaugeVec struct{ *prometheus.GaugeVec }
 
-	aggregateCapacity = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: "netapp",
-			Subsystem: "capacity",
-			Name:      "aggregate",
-			Help:      "Netapp aggregate capacity",
-		},
-		[]string{
-			"availability_zone",
-			"filer",
-			"node",
-			"aggregate",
-			"metric",
-		},
-	)
-)
+func NewVolumeGaugeVec() VolumeGaugeVec {
+	return VolumeGaugeVec{
+		prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace: "netapp",
+				Subsystem: "capacity",
+				Name:      "svm",
+				Help:      "Netapp Volume Capacity",
+			},
+			[]string{
+				"project_id",
+				"share_id",
+				"filer",
+				"vserver",
+				"volume",
+				"metric",
+			},
+		),
+	}
+}
+
+func NewAggrGaugeVec() AggrGaugeVec {
+	return AggrGaugeVec{
+		prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace: "netapp",
+				Subsystem: "capacity",
+				Name:      "aggregate",
+				Help:      "Netapp aggregate capacity",
+			},
+			[]string{
+				"availability_zone",
+				"filer",
+				"node",
+				"aggregate",
+				"metric",
+			},
+		),
+	}
+}
 
 type CapacityExporter struct {
 	volumeCollector    prometheus.Collector
@@ -60,6 +69,7 @@ func (p *CapacityExporter) runGetNetappShare(f *Filer, t time.Duration) {
 		if err != nil {
 			logger.Println(err)
 		}
+		logger.Debugln("Number of volumes received", len(netappVolumes))
 
 		for _, v := range netappVolumes {
 			_SizeTotal, _ := strconv.ParseFloat(v.SizeTotal, 64)

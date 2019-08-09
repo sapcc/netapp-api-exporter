@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -44,16 +43,18 @@ func init() {
 }
 
 func main() {
+	volumeGV := NewVolumeGaugeVec()
+	aggrGV := NewAggrGaugeVec()
 
-	p := NewCapacityExporter()
-	for _, f := range filers {
-		f.Init()
-		go p.runGetNetappShare(f, time.Duration(*sleepTime))
-		go p.runGetNetappAggregate(f, time.Duration(*sleepTime))
-	}
+	// p := NewCapacityExporter()
+	// for _, f := range filers {
+	// 	f.Init()
+	// 	go p.runGetNetappShare(f, time.Duration(*sleepTime))
+	// 	go p.runGetNetappAggregate(f, time.Duration(*sleepTime))
+	// }
 
-	prometheus.MustRegister(p.volumeCollector)
-	prometheus.MustRegister(p.aggregateCollector)
+	prometheus.MustRegister(volumeGV)
+	prometheus.MustRegister(aggrGV)
 	http.Handle("/metrics", promhttp.Handler())
 	http.ListenAndServe(*listenAddress+":9108", nil)
 }
