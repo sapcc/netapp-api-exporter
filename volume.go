@@ -109,7 +109,12 @@ func (f *Filer) GetNetappVolume(r chan<- *NetappVolume, done chan<- struct{}) {
 		}
 	}
 
-	done <- struct{}{}
+	// done chanel will trigger cleanup procedure of the exporters, where
+	// volumes that are not available anymore will be deleted from exporter
+	if len(volumes) != 0 {
+		// Don't send data to done channel when no volume is fetched
+		done <- struct{}{}
+	}
 }
 
 func (f *Filer) getNetappVolumePages(opts *netapp.VolumeOptions, maxPage int) []*netapp.VolumeListResponse {
