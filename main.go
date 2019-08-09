@@ -116,7 +116,7 @@ func main() {
 	prometheus.MustRegister(volumeGV)
 	prometheus.MustRegister(aggrGV)
 	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(*listenAddress+":9108", nil)
+	logger.Fatal(http.ListenAndServe(*listenAddress+":9108", nil))
 }
 
 func loadFilerFromFile(fileName string) (c []*Filer) {
