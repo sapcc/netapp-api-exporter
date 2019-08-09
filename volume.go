@@ -8,9 +8,10 @@ import (
 )
 
 type NetappVolume struct {
+	ProjectID                         string
 	ShareID                           string
 	ShareName                         string
-	ProjectID                         string
+	FilerName                         string
 	Vserver                           string
 	Volume                            string
 	Size                              int
@@ -62,7 +63,7 @@ func (f *Filer) GetNetappVolume() (r []*NetappVolume, err error) {
 	logger.Printf("%s: %d (%d) volumes fetched", f.Host, len(volumes), len(volumePages))
 
 	for _, vol := range volumes {
-		nv := &NetappVolume{}
+		nv := &NetappVolume{FilerName: f.Name}
 		if vol.VolumeIDAttributes != nil {
 			nv.Vserver = vol.VolumeIDAttributes.OwningVserverName
 			nv.Volume = vol.VolumeIDAttributes.Name

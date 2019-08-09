@@ -74,16 +74,16 @@ func (p *CapacityExporter) runGetNetappShare(f *Filer, t time.Duration) {
 			_PercentageTotalSpaceSaved, _ := strconv.ParseFloat(v.PercentageTotalSpaceSaved, 64)
 
 			// netappCapacity.WithLabelValues(v.ProjectID, v.ShareID, f.Name, v.Vserver, v.Volume, "size").Set(float64(v.Size))
-			volumeCapacity.WithLabelValues(v.ProjectID, v.ShareID, f.Name, v.Vserver, v.Volume, "size_total").Set(_SizeTotal)
-			volumeCapacity.WithLabelValues(v.ProjectID, v.ShareID, f.Name, v.Vserver, v.Volume, "size_used").Set(_SizeUsed)
-			volumeCapacity.WithLabelValues(v.ProjectID, v.ShareID, f.Name, v.Vserver, v.Volume, "size_available").Set(_SizeAvailable)
-			volumeCapacity.WithLabelValues(v.ProjectID, v.ShareID, f.Name, v.Vserver, v.Volume, "size_used_by_snapshots").Set(_SizeUsedBySnapshots)
-			volumeCapacity.WithLabelValues(v.ProjectID, v.ShareID, f.Name, v.Vserver, v.Volume, "size_available_for_snapshots").Set(_SizeAvailableForSnapshots)
-			volumeCapacity.WithLabelValues(v.ProjectID, v.ShareID, f.Name, v.Vserver, v.Volume, "size_reserved_by_snapshots").Set(_SnapshotReserveSize)
-			volumeCapacity.WithLabelValues(v.ProjectID, v.ShareID, f.Name, v.Vserver, v.Volume, "percentage_used").Set(_PercentageSizeUsed)
-			volumeCapacity.WithLabelValues(v.ProjectID, v.ShareID, f.Name, v.Vserver, v.Volume, "percentage_compression_saved").Set(_PercentageCompressionSpaceSaved)
-			volumeCapacity.WithLabelValues(v.ProjectID, v.ShareID, f.Name, v.Vserver, v.Volume, "percentage_deduplication_saved").Set(_PercentageDeduplicationSpaceSaved)
-			volumeCapacity.WithLabelValues(v.ProjectID, v.ShareID, f.Name, v.Vserver, v.Volume, "percentage_total_saved").Set(_PercentageTotalSpaceSaved)
+			volumeCapacity.WithLabelValues(v.ProjectID, v.ShareID, v.FilerName, v.Vserver, v.Volume, "size_total").Set(_SizeTotal)
+			volumeCapacity.WithLabelValues(v.ProjectID, v.ShareID, v.FilerName, v.Vserver, v.Volume, "size_used").Set(_SizeUsed)
+			volumeCapacity.WithLabelValues(v.ProjectID, v.ShareID, v.FilerName, v.Vserver, v.Volume, "size_available").Set(_SizeAvailable)
+			volumeCapacity.WithLabelValues(v.ProjectID, v.ShareID, v.FilerName, v.Vserver, v.Volume, "size_used_by_snapshots").Set(_SizeUsedBySnapshots)
+			volumeCapacity.WithLabelValues(v.ProjectID, v.ShareID, v.FilerName, v.Vserver, v.Volume, "size_available_for_snapshots").Set(_SizeAvailableForSnapshots)
+			volumeCapacity.WithLabelValues(v.ProjectID, v.ShareID, v.FilerName, v.Vserver, v.Volume, "size_reserved_by_snapshots").Set(_SnapshotReserveSize)
+			volumeCapacity.WithLabelValues(v.ProjectID, v.ShareID, v.FilerName, v.Vserver, v.Volume, "percentage_used").Set(_PercentageSizeUsed)
+			volumeCapacity.WithLabelValues(v.ProjectID, v.ShareID, v.FilerName, v.Vserver, v.Volume, "percentage_compression_saved").Set(_PercentageCompressionSpaceSaved)
+			volumeCapacity.WithLabelValues(v.ProjectID, v.ShareID, v.FilerName, v.Vserver, v.Volume, "percentage_deduplication_saved").Set(_PercentageDeduplicationSpaceSaved)
+			volumeCapacity.WithLabelValues(v.ProjectID, v.ShareID, v.FilerName, v.Vserver, v.Volume, "percentage_total_saved").Set(_PercentageTotalSpaceSaved)
 		}
 
 		time.Sleep(t * time.Second)
@@ -96,13 +96,13 @@ func (p *CapacityExporter) runGetNetappAggregate(f *Filer, t time.Duration) {
 
 		for _, v := range aggrList {
 			_percentrageUsed, _ := strconv.ParseFloat(v.PercentUsedCapacity, 64)
-			aggregateCapacity.WithLabelValues(f.AvailabilityZone, f.Name, v.OwnerName, v.Name, "size_used").Set(float64(v.SizeUsed))
-			aggregateCapacity.WithLabelValues(f.AvailabilityZone, f.Name, v.OwnerName, v.Name, "size_available").Set(float64(v.SizeAvailable))
-			aggregateCapacity.WithLabelValues(f.AvailabilityZone, f.Name, v.OwnerName, v.Name, "size_total").Set(float64(v.SizeTotal))
-			aggregateCapacity.WithLabelValues(f.AvailabilityZone, f.Name, v.OwnerName, v.Name, "size_total").Set(float64(v.SizeTotal))
-			aggregateCapacity.WithLabelValues(f.AvailabilityZone, f.Name, v.OwnerName, v.Name, "percentage_used").Set(_percentrageUsed)
-			aggregateCapacity.WithLabelValues(f.AvailabilityZone, f.Name, v.OwnerName, v.Name, "physical_used").Set(float64(v.PhysicalUsed))
-			aggregateCapacity.WithLabelValues(f.AvailabilityZone, f.Name, v.OwnerName, v.Name, "physical_used_percent").Set(float64(v.PhysicalUsedPercent))
+			aggregateCapacity.WithLabelValues(v.AvailabilityZone, v.FilerName, v.OwnerName, v.Name, "size_used").Set(float64(v.SizeUsed))
+			aggregateCapacity.WithLabelValues(v.AvailabilityZone, v.FilerName, v.OwnerName, v.Name, "size_available").Set(float64(v.SizeAvailable))
+			aggregateCapacity.WithLabelValues(v.AvailabilityZone, v.FilerName, v.OwnerName, v.Name, "size_total").Set(float64(v.SizeTotal))
+			aggregateCapacity.WithLabelValues(v.AvailabilityZone, v.FilerName, v.OwnerName, v.Name, "size_total").Set(float64(v.SizeTotal))
+			aggregateCapacity.WithLabelValues(v.AvailabilityZone, v.FilerName, v.OwnerName, v.Name, "percentage_used").Set(_percentrageUsed)
+			aggregateCapacity.WithLabelValues(v.AvailabilityZone, v.FilerName, v.OwnerName, v.Name, "physical_used").Set(float64(v.PhysicalUsed))
+			aggregateCapacity.WithLabelValues(v.AvailabilityZone, v.FilerName, v.OwnerName, v.Name, "physical_used_percent").Set(float64(v.PhysicalUsedPercent))
 		}
 
 		time.Sleep(t * time.Second)

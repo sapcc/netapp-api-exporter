@@ -9,6 +9,8 @@ import (
 )
 
 type Aggregate struct {
+	AvailabilityZone    string
+	FilerName           string
 	Name                string
 	OwnerName           string
 	SizeUsed            int
@@ -39,6 +41,8 @@ func (f *Filer) GetAggrData() (r []*Aggregate) {
 
 	for _, n := range l {
 		r = append(r, &Aggregate{
+			FilerName:           f.Name,
+			AvailabilityZone:    f.AvailabilityZone,
 			Name:                n.AggregateName,
 			OwnerName:           n.AggrOwnershipAttributes.OwnerName,
 			SizeUsed:            n.AggrSpaceAttributes.SizeUsed,
