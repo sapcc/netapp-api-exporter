@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -14,6 +15,7 @@ type NetappVolume struct {
 	FilerName                         string
 	Vserver                           string
 	Volume                            string
+	Comment                           string
 	Size                              int
 	SizeTotal                         string
 	SizeAvailable                     string
@@ -94,9 +96,17 @@ func (f *Filer) GetNetappVolume(r chan<- *NetappVolume, done chan<- struct{}) {
 				logger.Printf("%s (%s) does not have comment", vol.VolumeIDAttributes.Name, vol.VolumeIDAttributes.OwningVserverName)
 			}
 		} else {
-			nv.ShareID, nv.ShareName, nv.ProjectID = parseVolumeComment(vol.VolumeIDAttributes.Comment)
+			// nv.ShareID, nv.ShareName, nv.ProjectID := parseVolumeComment(vol.VolumeIDAttributes.Comment)
+			shareID, shareName, projectID, err := parseVolumeComment(vol.VolumeIDAttributes.Comment)
+			if err != nil {
+				logger.Warn(err)
+			} else {
+				nv.ShareID = shareID
+				nv.ShareName = shareName
+				nv.ProjectID = projectID
+				r <- nv
+			}
 		}
-		r <- nv
 	}
 
 	done <- struct{}{}
@@ -132,7 +142,7 @@ func extractVolumes(pages []*netapp.VolumeListResponse) (vols []netapp.VolumeInf
 	return
 }
 
-func parseVolumeComment(c string) (shareID string, shareName string, projectID string) {
+func parseVolumeComment(c string) (shareID string, shareName string, projectID string, err error) {
 	// r := regexp.MustCompile(`((?P<k1>\w+): (?P<v1>[\w-]+))(, ((?P<k2>\w+): (?P<v2>[\w-]+))(, ((?P<k3>\w+): (?P<v3>[\w-]+)))?)?`)
 	// matches := r.FindStringSubmatch(c)
 
@@ -151,7 +161,7 @@ func parseVolumeComment(c string) (shareID string, shareName string, projectID s
 	}
 
 	if shareID == "" || projectID == "" {
-		logger.Warnf("Failed to parse share_id/project from '%s'", c)
+		err = fmt.Errorf("Failed to parse share_id/project from '%s'", c)
 	}
 	// logger.Debugln(c, "---", shareID, shareName, projectID)
 	return

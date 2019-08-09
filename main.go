@@ -47,20 +47,26 @@ func main() {
 	volumeGV := NewVolumeGaugeVec()
 	aggrGV := NewAggrGaugeVec()
 
-	cancelVolChan := make(chan struct{})
-	cancelAggrChan := make(chan struct{})
+	// volContext, volCancel := context.WithCancel(context.Background())
+	cancelGetVolChan := make(chan struct{})
+	cancelSetVolChan := make(chan struct{})
+	// cancelAggrChan := make(chan struct{})
 	defer func() {
-		cancelVolChan <- struct{}{}
-		cancelAggrChan <- struct{}{}
+		cancelGetVolChan <- struct{}{}
+		cancelSetVolChan <- struct{}{}
+		// cancelAggrChan <- struct{}{}
 	}()
 
 	volChan := make(chan *NetappVolume)
 	doneGetVolChan := make(chan struct{})
 
+	// aggrChan := make(chan *Aggregate)
+	// doneGetAggrChan := make(chan struct{})
+
 	go func() {
 		for {
 			select {
-			case <-cancelVolChan:
+			case <-cancelGetVolChan:
 				return
 			default:
 				for _, f := range filers {
@@ -77,6 +83,7 @@ func main() {
 		for {
 			select {
 			case v := <-volChan:
+				logger.Debugf("volume %s received", v.ShareID)
 				volumeGV.SetMetric(v)
 				rcvdVolumes[v.ShareID] = v
 				volumes[v.ShareID] = true
@@ -86,23 +93,17 @@ func main() {
 						volumeGV.DeleteMetric(rcvdVolumes[shareID])
 						delete(rcvdVolumes, shareID)
 						delete(volumes, shareID)
+						logger.Debugf("volume %s deleted", shareID)
 					}
 				}
 				for shareID, _ := range volumes {
 					volumes[shareID] = false
 				}
-			case <-cancelVolChan:
+			case <-cancelSetVolChan:
 				return
 			}
 		}
 	}()
-
-	// p := NewCapacityExporter()
-	// for _, f := range filers {
-	// 	f.Init()
-	// 	go p.runGetNetappShare(f, time.Duration(*sleepTime))
-	// 	go p.runGetNetappAggregate(f, time.Duration(*sleepTime))
-	// }
 
 	prometheus.MustRegister(volumeGV)
 	prometheus.MustRegister(aggrGV)
