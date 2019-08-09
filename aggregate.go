@@ -1,9 +1,6 @@
 package main
 
 import (
-	"log"
-	"os"
-
 	"github.com/pepabo/go-netapp/netapp"
 )
 
@@ -37,6 +34,7 @@ func (f *Filer) GetNetappAggregate(r chan<- *Aggregate, done chan<- struct{}) {
 	}
 
 	aggrs := f.getAggrList(opts)
+	logger.Printf("%s: %d aggregates fetched", f.Host, len(aggrs))
 
 	for _, n := range aggrs {
 		r <- &Aggregate{
@@ -59,25 +57,15 @@ func (f *Filer) GetNetappAggregate(r chan<- *Aggregate, done chan<- struct{}) {
 	}
 }
 
-func (f *Filer) getAggrList(opts *netapp.AggrOptions) (r []netapp.AggrInfo) {
-	var pages []*netapp.AggrListResponse
-
-	handler := func(r netapp.AggrListPagesResponse) bool {
+func (f *Filer) getAggrList(opts *netapp.AggrOptions) (res []netapp.AggrInfo) {
+	pageHandler := func(r netapp.AggrListPagesResponse) bool {
 		if r.Error != nil {
-			if os.Getenv("INFO") != "" {
-				log.Printf("%s", r.Error)
-			}
+			logger.Warnf("%s", r.Error)
 			return false
 		}
-		pages = append(pages, r.Response)
+		res = append(res, r.Response.Results.AggrAttributes...)
 		return true
 	}
-
-	f.NetappClient.Aggregate.ListPages(opts, handler)
-
-	for _, p := range pages {
-		r = append(r, p.Results.AggrAttributes...)
-	}
-
+	f.NetappClient.Aggregate.ListPages(opts, pageHandler)
 	return
 }

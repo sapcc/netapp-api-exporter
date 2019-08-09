@@ -59,10 +59,8 @@ func (f *Filer) GetNetappVolume(r chan<- *NetappVolume, done chan<- struct{}) {
 		},
 	}
 
-	volumePages := f.getNetappVolumePages(&volumeOptions, -1)
-	volumes := extractVolumes(volumePages)
-
-	logger.Printf("%s: %d (%d) volumes fetched", f.Host, len(volumes), len(volumePages))
+	volumes := f.getVolumeList(&volumeOptions)
+	logger.Printf("%s: %d volumes fetched", f.Host, len(volumes))
 
 	for _, vol := range volumes {
 		nv := &NetappVolume{FilerName: f.Name}
@@ -117,33 +115,16 @@ func (f *Filer) GetNetappVolume(r chan<- *NetappVolume, done chan<- struct{}) {
 	}
 }
 
-func (f *Filer) getNetappVolumePages(opts *netapp.VolumeOptions, maxPage int) []*netapp.VolumeListResponse {
-	var volumePages []*netapp.VolumeListResponse
-	var page int
-
+func (f *Filer) getVolumeList(opts *netapp.VolumeOptions) (res []netapp.VolumeInfo) {
 	pageHandler := func(r netapp.VolumeListPagesResponse) bool {
 		if r.Error != nil {
 			logger.Warnf("%s", r.Error)
 			return false
 		}
-
-		volumePages = append(volumePages, r.Response)
-
-		page += 1
-		if maxPage > 0 && page >= maxPage {
-			return false
-		}
+		res = append(res, r.Response.Results.AttributesList...)
 		return true
 	}
-
 	f.NetappClient.Volume.ListPages(opts, pageHandler)
-	return volumePages
-}
-
-func extractVolumes(pages []*netapp.VolumeListResponse) (vols []netapp.VolumeInfo) {
-	for _, p := range pages {
-		vols = append(vols, p.Results.AttributesList...)
-	}
 	return
 }
 
