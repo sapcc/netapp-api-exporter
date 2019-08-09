@@ -15,15 +15,20 @@ func TestNetappAggregate(t *testing.T) {
 	az := os.Getenv("NETAPP_AZ")
 	f := NewFiler("test", host, username, password, az)
 
-	l := f.GetAggrData()
-	n := l[2]
+	ch := make(chan *Aggregate)
+	done := make(chan struct{})
+	f.GetNetappAggregate(ch, done)
 
-	fmt.Println("Aggregate Name:\t\t", n.Name)
-	fmt.Println("Size Used:\t\t", n.SizeUsed)
-	fmt.Println("Size Total:\t\t", n.SizeTotal)
-	fmt.Println("Size Available:\t\t", n.SizeAvailable)
-	fmt.Println("Size Used Percentage:\t", n.PercentUsedCapacity)
-	fmt.Println("Physical Used Percent:\t", n.PhysicalUsedPercent)
-
-	assert.Equal(t, "", n)
+	for {
+		select {
+		case n := <-ch:
+			fmt.Println("Aggregate Name:\t\t", n.Name)
+			fmt.Println("Size Used:\t\t", n.SizeUsed)
+			fmt.Println("Size Total:\t\t", n.SizeTotal)
+			fmt.Println("Size Available:\t\t", n.SizeAvailable)
+			fmt.Println("Size Used Percentage:\t", n.PercentUsedCapacity)
+			fmt.Println("Physical Used Percent:\t", n.PhysicalUsedPercent)
+			assert.Equal(t, "", n)
+		}
+	}
 }
