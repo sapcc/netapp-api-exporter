@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 
@@ -22,7 +21,7 @@ type Aggregate struct {
 	PhysicalUsedPercent int
 }
 
-func (f *Filer) GetAggrData() (r []*Aggregate) {
+func (f *Filer) GetNetappAggregate(r chan<- *Aggregate, done chan<- struct{}) {
 	ff := new(bool)
 	*ff = false
 	opts := &netapp.AggrOptions{
@@ -37,10 +36,10 @@ func (f *Filer) GetAggrData() (r []*Aggregate) {
 		},
 	}
 
-	l := f.getAggrList(opts)
+	aggrs := f.getAggrList(opts)
 
-	for _, n := range l {
-		r = append(r, &Aggregate{
+	for _, n := range aggrs {
+		r <- &Aggregate{
 			FilerName:           f.Name,
 			AvailabilityZone:    f.AvailabilityZone,
 			Name:                n.AggregateName,
@@ -52,17 +51,18 @@ func (f *Filer) GetAggrData() (r []*Aggregate) {
 			PercentUsedCapacity: n.AggrSpaceAttributes.PercentUsedCapacity,
 			PhysicalUsed:        n.AggrSpaceAttributes.PhysicalUsed,
 			PhysicalUsedPercent: n.AggrSpaceAttributes.PhysicalUsedPercent,
-		})
+		}
 	}
-	return
+
+	if len(aggrs) != 0 {
+		done <- struct{}{}
+	}
 }
 
 func (f *Filer) getAggrList(opts *netapp.AggrOptions) (r []netapp.AggrInfo) {
-
 	var pages []*netapp.AggrListResponse
 
 	handler := func(r netapp.AggrListPagesResponse) bool {
-		fmt.Println(r)
 		if r.Error != nil {
 			if os.Getenv("INFO") != "" {
 				log.Printf("%s", r.Error)

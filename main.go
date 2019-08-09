@@ -54,8 +54,8 @@ func main() {
 	volChan := make(chan *NetappVolume)
 	doneGetVolChan := make(chan struct{})
 
-	// aggrChan := make(chan *Aggregate)
-	// doneGetAggrChan := make(chan struct{})
+	aggrChan := make(chan *Aggregate)
+	doneGetAggrChan := make(chan struct{})
 
 	go func(ctx context.Context) {
 		for {
@@ -66,7 +66,7 @@ func main() {
 			}
 			for _, f := range filers {
 				f.GetNetappVolume(volChan, doneGetVolChan)
-				// f.GetAggrData()
+				f.GetNetappAggregate(aggrChan, doneGetAggrChan)
 			}
 			time.Sleep(time.Duration(*sleepTime) * time.Second)
 		}
@@ -78,7 +78,7 @@ func main() {
 		for {
 			select {
 			case v := <-volChan:
-				logger.Debugf("volume %s received", v.ShareID)
+				logger.Debugf("Volume %s received", v.ShareID)
 				volumeGV.SetMetric(v)
 				rcvdVolumes[v.ShareID] = v
 				volumes[v.ShareID] = true
@@ -99,6 +99,19 @@ func main() {
 			}
 		}
 	}(ctx)
+
+	go func(ctx context.Context, gv AggrGaugeVec) {
+		for {
+			select {
+			case ag := <-aggrChan:
+				logger.Debugf("Aggregate %s received", ag.Name)
+				gv.SetMetric(ag)
+			case <-doneGetAggrChan:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}(ctx, aggrGV)
 
 	prometheus.MustRegister(volumeGV)
 	prometheus.MustRegister(aggrGV)

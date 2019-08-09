@@ -123,7 +123,7 @@ func (f *Filer) getNetappVolumePages(opts *netapp.VolumeOptions, maxPage int) []
 
 	pageHandler := func(r netapp.VolumeListPagesResponse) bool {
 		if r.Error != nil {
-			logger.Printf("%s", r.Error)
+			logger.Warnf("%s", r.Error)
 			return false
 		}
 
