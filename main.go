@@ -130,7 +130,7 @@ func loadFilerFromFile(fileName string) (c []*Filer) {
 		logger.Fatal("[ERROR] ", err)
 	}
 	for _, b := range fb {
-		c = append(c, &Filer{FilerBase: b})
+		c = append(c, NewFiler(b.Name, b.Host, b.Username, b.Password, b.AvailabilityZone))
 	}
 	return
 }
