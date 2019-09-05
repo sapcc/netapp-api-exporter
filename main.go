@@ -20,6 +20,7 @@ var (
 	sleepTime     = kingpin.Flag("wait", "Wait time").Short('w').Default("300").Int64()
 	configFile    = kingpin.Flag("config", "Config file").Short('c').Default("./netapp_filers.yaml").String()
 	listenAddress = kingpin.Flag("listen", "Listen address").Short('l').Default("0.0.0.0").String()
+	debug         = kingpin.Flag("debug", "Debug mode").Short('d').Bool()
 	logger        = logrus.New()
 
 	filers []*Filer
@@ -33,11 +34,15 @@ func init() {
 	logger.Out = os.Stdout
 	logger.SetFormatter(new(myFormatter))
 	if os.Getenv("DEV") != "" {
-		logger.Level = logrus.DebugLevel
+		*debug = true
 		filers = loadFilerFromEnv()
 	} else {
-		logger.Level = logrus.InfoLevel
 		filers = loadFilerFromFile(*configFile)
+	}
+	if *debug {
+		logger.Level = logrus.DebugLevel
+	} else {
+		logger.Level = logrus.InfoLevel
 	}
 	for _, f := range filers {
 		logger.Printf("Host (%s) loaded", f.Host)
