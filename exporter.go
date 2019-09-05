@@ -50,11 +50,6 @@ func NewAggrGaugeVec() AggrGaugeVec {
 	}
 }
 
-type CapacityExporter struct {
-	volumeCollector    prometheus.Collector
-	aggregateCollector prometheus.Collector
-}
-
 func (vg *VolumeGaugeVec) SetMetric(v *NetappVolume) {
 	_SizeTotal, _ := strconv.ParseFloat(v.SizeTotal, 64)
 	_SizeAvailable, _ := strconv.ParseFloat(v.SizeAvailable, 64)
@@ -67,7 +62,6 @@ func (vg *VolumeGaugeVec) SetMetric(v *NetappVolume) {
 	_PercentageDeduplicationSpaceSaved, _ := strconv.ParseFloat(v.PercentageDeduplicationSpaceSaved, 64)
 	_PercentageTotalSpaceSaved, _ := strconv.ParseFloat(v.PercentageTotalSpaceSaved, 64)
 
-	// netappCapacity.WithLabelValues(v.ProjectID, v.ShareID, f.Name, v.Vserver, v.Volume, "size").Set(float64(v.Size))
 	vg.WithLabelValues(v.ProjectID, v.ShareID, v.FilerName, v.Vserver, v.Volume, "size_total").Set(_SizeTotal)
 	vg.WithLabelValues(v.ProjectID, v.ShareID, v.FilerName, v.Vserver, v.Volume, "size_used").Set(_SizeUsed)
 	vg.WithLabelValues(v.ProjectID, v.ShareID, v.FilerName, v.Vserver, v.Volume, "size_available").Set(_SizeAvailable)
@@ -94,7 +88,6 @@ func (vg *VolumeGaugeVec) DeleteMetric(v *NetappVolume) {
 }
 
 func (ag *AggrGaugeVec) SetMetric(v *Aggregate) {
-	// aggrList := f.GetAggrData()
 	_percentrageUsed, _ := strconv.ParseFloat(v.PercentUsedCapacity, 64)
 	ag.WithLabelValues(v.AvailabilityZone, v.FilerName, v.OwnerName, v.Name, "size_used").Set(float64(v.SizeUsed))
 	ag.WithLabelValues(v.AvailabilityZone, v.FilerName, v.OwnerName, v.Name, "size_available").Set(float64(v.SizeAvailable))
