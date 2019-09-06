@@ -56,72 +56,70 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	volChan := make(chan *NetappVolume)
-	doneGetVolChan := make(chan struct{})
-
-	aggrChan := make(chan *Aggregate)
-	doneGetAggrChan := make(chan struct{})
-
-	go func(ctx context.Context) {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
-			for _, f := range filers {
-				f.GetNetappVolume(volChan, doneGetVolChan)
-				f.GetNetappAggregate(aggrChan, doneGetAggrChan)
-			}
-			time.Sleep(time.Duration(*sleepTime) * time.Second)
-		}
-	}(ctx)
-
-	go func(ctx context.Context) {
-		rcvdVolumes := make(map[string]*NetappVolume)
-		volumes := make(map[string]bool)
-		for {
-			select {
-			case v := <-volChan:
-				logger.Debugf("Volume %s received", v.ShareID)
-				volumeGV.SetMetric(v)
-				rcvdVolumes[v.ShareID] = v
-				volumes[v.ShareID] = true
-			case <-doneGetVolChan:
-				for shareID, ok := range volumes {
-					if !ok {
-						volumeGV.DeleteMetric(rcvdVolumes[shareID])
-						delete(rcvdVolumes, shareID)
-						delete(volumes, shareID)
-						logger.Debugf("volume %s deleted", shareID)
-					}
-				}
-				for shareID, _ := range volumes {
-					volumes[shareID] = false
-				}
-			case <-ctx.Done():
-				return
-			}
-		}
-	}(ctx)
-
-	go func(ctx context.Context, gv AggrGaugeVec) {
-		for {
-			select {
-			case ag := <-aggrChan:
-				logger.Debugf("Aggregate %s received", ag.Name)
-				gv.SetMetric(ag)
-			case <-doneGetAggrChan:
-			case <-ctx.Done():
-				return
-			}
-		}
-	}(ctx, aggrGV)
+	for _, f := range filers {
+		go fetchData(ctx, f)
+		go processVolumes(ctx, f, volumeGV)
+		go processAggregates(ctx, f, aggrGV)
+	}
 
 	prometheus.MustRegister(volumeGV)
 	prometheus.MustRegister(aggrGV)
 	http.Handle("/metrics", promhttp.Handler())
 	logger.Fatal(http.ListenAndServe(*listenAddress+":9108", nil))
+}
+
+func fetchData(ctx context.Context, f *Filer) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		f.GetNetappVolume(f.volChan, f.getVolDone)
+		f.GetNetappAggregate(f.aggrChan, f.getAggrDone)
+		time.Sleep(time.Duration(*sleepTime) * time.Second)
+	}
+}
+
+func processVolumes(ctx context.Context, f *Filer, gv VolumeGaugeVec) {
+	rcvdVolumes := make(map[string]*NetappVolume)
+	volumes := make(map[string]bool)
+	for {
+		select {
+		case v := <-f.volChan:
+			logger.Debugf("[%s] Volume %s received: %s", f.Name, v.ShareID, v.SizeUsed)
+			gv.SetMetric(v)
+			rcvdVolumes[v.ShareID] = v
+			volumes[v.ShareID] = true
+		case <-f.getVolDone:
+			for shareID, ok := range volumes {
+				if !ok {
+					gv.DeleteMetric(rcvdVolumes[shareID])
+					delete(rcvdVolumes, shareID)
+					delete(volumes, shareID)
+					logger.Debugf("[%s] Volume %s deleted", f.Name, shareID)
+				}
+			}
+			for shareID, _ := range volumes {
+				volumes[shareID] = false
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func processAggregates(ctx context.Context, f *Filer, gv AggrGaugeVec) {
+	for {
+		select {
+		case ag := <-f.aggrChan:
+			logger.Debugf("[%s] Aggregate %s received", f.Name, ag.Name)
+			gv.SetMetric(ag)
+		case <-f.getAggrDone:
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 func loadFilerFromFile(fileName string) (c []*Filer) {
