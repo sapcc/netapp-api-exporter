@@ -1,6 +1,16 @@
 app=netapp-api-exporter
 IMAGE=hub.global.cloud.sap/monsoon/${app}
-VERSION:=v$(shell date -u +%Y%m%d%H%M%S)
+
+BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
+HASH := $(shell git rev-parse HEAD | head -c 7)
+
+ifeq ($(BRANCH),master)
+	VERSION := $(HASH)
+else
+	VERSION := $(BRANCH)-$(HASH)
+endif
+
+# VERSION:=v$(shell date -u +%Y%m%d%H%M%S)
 
 #netapp-api-exporter:
 
