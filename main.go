@@ -123,6 +123,8 @@ func processAggregates(ctx context.Context, f *Filer, gv AggrGaugeVec) {
 }
 
 func loadFilerFromFile(fileName string) (c []*Filer) {
+	username, password := loadAuthFromEnv()
+
 	var fb []FilerBase
 	yamlFile, err := ioutil.ReadFile(fileName)
 	if err != nil {
@@ -133,7 +135,11 @@ func loadFilerFromFile(fileName string) (c []*Filer) {
 		logger.Fatal("[ERROR] ", err)
 	}
 	for _, b := range fb {
-		c = append(c, NewFiler(b.Name, b.Host, b.Username, b.Password, b.AvailabilityZone))
+		if b.Username == "" || b.Password == "" {
+			c = append(c, NewFiler(b.Name, b.Host, username, password, b.AvailabilityZone))
+		} else {
+			c = append(c, NewFiler(b.Name, b.Host, b.Username, b.Password, b.AvailabilityZone))
+		}
 	}
 	return
 }
@@ -145,6 +151,12 @@ func loadFilerFromEnv() (c []*Filer) {
 	az := os.Getenv("NETAPP_AZ")
 	f := NewFiler("test", host, username, password, az)
 	c = append(c, f)
+	return
+}
+
+func loadAuthFromEnv() (username, password string) {
+	username = os.Getenv("NETAPP_USERNAME")
+	password = os.Getenv("NETAPP_PASSWORD")
 	return
 }
 
