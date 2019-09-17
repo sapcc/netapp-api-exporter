@@ -33,12 +33,6 @@ func init() {
 
 	logger.Out = os.Stdout
 	logger.SetFormatter(new(myFormatter))
-	if os.Getenv("DEV") != "" {
-		*debug = true
-		filers = loadFilerFromEnv()
-	} else {
-		filers = loadFilerFromFile(*configFile)
-	}
 	if *debug {
 		logger.Level = logrus.DebugLevel
 	} else {
@@ -52,6 +46,15 @@ func init() {
 func main() {
 	volumeGV := NewVolumeGaugeVec()
 	aggrGV := NewAggrGaugeVec()
+
+	for {
+		filers = loadFilers()
+		if len(filers) == 0 {
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		break
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -140,6 +143,16 @@ func loadFilerFromFile(fileName string) (c []*Filer) {
 		} else {
 			c = append(c, NewFiler(b.Name, b.Host, b.Username, b.Password, b.AvailabilityZone))
 		}
+	}
+	return
+}
+
+func loadFilers() (filers []*Filer) {
+	if os.Getenv("DEV") != "" {
+		*debug = true
+		filers = loadFilerFromEnv()
+	} else {
+		filers = loadFilerFromFile(*configFile)
 	}
 	return
 }
