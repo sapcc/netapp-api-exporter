@@ -3,16 +3,7 @@ IMAGE=hub.global.cloud.sap/monsoon/${app}
 
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 HASH := $(shell git rev-parse HEAD | head -c 7)
-
-ifeq ($(BRANCH),master)
-	VERSION := $(HASH)
-else
-	VERSION := $(BRANCH)-$(HASH)
-endif
-
-# VERSION:=v$(shell date -u +%Y%m%d%H%M%S)
-
-#netapp-api-exporter:
+VERSION :=v$(shell date -u +%Y%m%d%H%M%S)-$(BRANCH)-$(HASH)
 
 .PHONY: build
 build: bin/${app}_linux_amd64 bin/${app}_darwin_amd64
