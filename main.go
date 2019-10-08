@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -187,9 +189,26 @@ func (f *myFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 
 type FilerCollector struct {
 	*Filer
+	volumeList []*NetappVolume
+	mux        sync.Mutex
 
-	volume    *prometheus.Desc
-	aggregate *prometheus.Desc
+	volumeSizeTotal                    *prometheus.Desc
+	volumeSizeAvail                    *prometheus.Desc
+	volumeSizeUsed                     *prometheus.Desc
+	volumeSizeUsedBySnapshots          *prometheus.Desc
+	volumeSizeAvailForSnapshots        *prometheus.Desc
+	volumeSizeReservedForSnapshots     *prometheus.Desc
+	volumePercentageUsed               *prometheus.Desc
+	volumePercentageCompressionSaved   *prometheus.Desc
+	volumePercentageDeduplicationSaved *prometheus.Desc
+	volumePercentageTotalSaved         *prometheus.Desc
+	aggregateSizeUsed                  *prometheus.Desc
+	aggregateSizeTotal                 *prometheus.Desc
+	aggregateSizeAvail                 *prometheus.Desc
+	aggregateSizeTotalReserved         *prometheus.Desc
+	aggregatePercentUsed               *prometheus.Desc
+	aggregatePhysicalUsed              *prometheus.Desc
+	aggregatePercentPhysicalUsed       *prometheus.Desc
 
 	up, scrapeDuration prometheus.Gauge
 	scrapesTotal       prometheus.Counter
@@ -198,29 +217,27 @@ type FilerCollector struct {
 
 func NewFilerCollector(f *Filer) prometheus.Collector {
 	volumeLabels := []string{
-		"project_id",
-		"share_id",
 		"filer",
 		"vserver",
 		"volume",
-		"metric",
+		"project_id",
+		"share_id",
 	}
 	aggregateLabels := []string{
 		"availability_zone",
 		"filer",
 		"node",
 		"aggregate",
-		"metric",
 	}
 	c := &FilerCollector{
 		//Filer: f,
-		volume: prometheus.NewDesc(
+		volumeSizeTotal: prometheus.NewDesc(
 			"netapp_capacity_svm",
-			"Netapp Volume Metrics",
+			"Netapp Volume Metrics: total size",
 			volumeLabels,
-			nil,
+			prometheus.Labels{"metric": "size_total"},
 		),
-		aggregate: prometheus.NewDesc(
+		aggregateSizeAvail: prometheus.NewDesc(
 			"netapp_capacity_aggregate",
 			"Netapp Aggregate Metrics",
 			aggregateLabels,
@@ -251,19 +268,61 @@ func NewFilerCollector(f *Filer) prometheus.Collector {
 }
 
 func (c *FilerCollector) Collect(chan<- prometheus.Metric) {
+	var err error
 	if time.Now().Sub(c.lastScrapeTime).Seconds() > *sleepTime {
 		c.lastScrapeTime = time.Now()
-
-		for _, f := range filers {
-			f.getVolumeList()
+		c.mux.Lock()
+		c.volumeList, err = c.Filer.GetNetappVolume()
+		c.mux.Unlock()
+		if err != nil {
+			c.up.Set(0)
+			return
 		}
+		for _, v := range c.volumeList {
+			labels := []string{c.Filer.Name, v.Vserver, v.Volume, v.ProjectID, v.ShareID}
 
+			sizeTotal, _ := strconv.ParseFloat(v.SizeTotal, 64)
+			sizeAvailable, _ := strconv.ParseFloat(v.SizeAvailable, 64)
+			sizeUsed, _ := strconv.ParseFloat(v.SizeUsed, 64)
+			sizeUsedBySnapshots, _ := strconv.ParseFloat(v.SizeUsedBySnapshots, 64)
+			sizeAvailableForSnapshots, _ := strconv.ParseFloat(v.SizeAvailableForSnapshots, 64)
+			snapshotReserveSize, _ := strconv.ParseFloat(v.SnapshotReserveSize, 64)
+			percentageSizeUsed, _ := strconv.ParseFloat(v.PercentageSizeUsed, 64)
+			percentageCompressionSpaceSaved, _ := strconv.ParseFloat(v.PercentageCompressionSpaceSaved, 64)
+			percentageDeduplicationSpaceSaved, _ := strconv.ParseFloat(v.PercentageDeduplicationSpaceSaved, 64)
+			percentageTotalSpaceSaved, _ := strconv.ParseFloat(v.PercentageTotalSpaceSaved, 64)
+			ch <- prometheus.MustNewConstMetric(c.volumeSizeTotal, prometheus.GaugeValue, sizeTotal, labels...)
+			ch <- prometheus.MustNewConstMetric(c.volumeSizeAvail, prometheus.GaugeValue, sizeAvailable, labels...)
+			ch <- prometheus.MustNewConstMetric(c.volumeSizeUsed, prometheus.GaugeValue, sizeUsed, labels...)
+			ch <- prometheus.MustNewConstMetric(c.volumeSizeUsedBySnapshots, prometheus.GaugeValue, sizeUsedBySnapshots, labels...)
+			ch <- prometheus.MustNewConstMetric(c.volumeSizeAvailForSnapshots, prometheus.GaugeValue, sizeAvailableForSnapshots, labels...)
+			ch <- prometheus.MustNewConstMetric(c.volumeSizeReservedForSnapshots, prometheus.GaugeValue, snapshotReserveSize, labels...)
+			ch <- prometheus.MustNewConstMetric(c.volumePercentageUsed, prometheus.GaugeValue, percentageSizeUsed, labels...)
+			ch <- prometheus.MustNewConstMetric(c.volumePercentageTotalSaved, prometheus.GaugeValue, percentageTotalSpaceSaved, labels...)
+			ch <- prometheus.MustNewConstMetric(c.volumePercentageCompressionSaved, prometheus.GaugeValue, percentageCompressionSpaceSaved, labels...)
+			ch <- prometheus.MustNewConstMetric(c.volumePercentageDeduplicationSaved, prometheus.GaugeValue, percentageDeduplicationSpaceSaved, labels...)
+		}
 	}
 }
 
 func (c *FilerCollector) Describe(ch chan<- *prometheus.Desc) {
-	ch <- c.volume
-	ch <- c.aggregate
+	ch <- c.volumeSizeTotal
+	ch <- c.volumeSizeAvail
+	ch <- c.volumeSizeUsed
+	ch <- c.volumeSizeUsedBySnapshots
+	ch <- c.volumeSizeAvailForSnapshots
+	ch <- c.volumeSizeReservedForSnapshots
+	ch <- c.volumePercentageUsed
+	ch <- c.volumePercentageCompressionSaved
+	ch <- c.volumePercentageDeduplicationSaved
+	ch <- c.volumePercentageTotalSaved
+	ch <- c.aggregateSizeUsed
+	ch <- c.aggregateSizeTotal
+	ch <- c.aggregateSizeAvail
+	ch <- c.aggregateSizeTotalReserved
+	ch <- c.aggregatePercentUsed
+	ch <- c.aggregatePhysicalUsed
+	ch <- c.aggregatePercentPhysicalUsed
 	ch <- c.up.Desc()
 	ch <- c.scrapesTotal.Desc()
 	ch <- c.scrapeDuration.Desc()

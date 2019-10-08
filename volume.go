@@ -29,6 +29,7 @@ type NetappVolume struct {
 	PercentageTotalSpaceSaved         string
 }
 
+// GetNetappVolume() returns list of volumes from netapp filer.
 func (f *Filer) GetNetappVolume() (volumes []*NetappVolume, err error) {
 	volumeOptions := netapp.VolumeOptions{
 		MaxRecords: 20,

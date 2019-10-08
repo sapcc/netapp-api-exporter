@@ -31,7 +31,6 @@ func NewFiler(name, host, username, password, az string) *Filer {
 		},
 		NetappClient: newNetappClient(host, username, password),
 	}
-	f.Init()
 	return f
 }
 
