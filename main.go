@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/pepabo/go-netapp/netapp"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -17,7 +18,7 @@ import (
 
 // Parameter
 var (
-	sleepTime     = kingpin.Flag("wait", "Wait time").Short('w').Default("300").Int64()
+	sleepTime     = kingpin.Flag("wait", "Wait time").Short('w').Default("300").Float64()
 	configFile    = kingpin.Flag("config", "Config file").Short('c').Default("./netapp_filers.yaml").String()
 	listenAddress = kingpin.Flag("listen", "Listen address").Short('l').Default("0.0.0.0").String()
 	debug         = kingpin.Flag("debug", "Debug mode").Short('d').Bool()
@@ -116,7 +117,7 @@ func processAggregates(ctx context.Context, f *Filer, gv AggrGaugeVec) {
 	for {
 		select {
 		case ag := <-f.aggrChan:
-			logger.Debugf("[%s] Aggregate %s received", f.Name, ag.Name)
+			logger.Debugf("[%s] NetappAggregate %s received", f.Name, ag.Name)
 			gv.SetMetric(ag)
 		case <-f.getAggrDone:
 		case <-ctx.Done():
@@ -126,8 +127,6 @@ func processAggregates(ctx context.Context, f *Filer, gv AggrGaugeVec) {
 }
 
 func loadFilerFromFile(fileName string) (c []*Filer) {
-	username, password := loadAuthFromEnv()
-
 	var fb []FilerBase
 	yamlFile, err := ioutil.ReadFile(fileName)
 	if err != nil {
@@ -139,6 +138,7 @@ func loadFilerFromFile(fileName string) (c []*Filer) {
 	}
 	for _, b := range fb {
 		if b.Username == "" || b.Password == "" {
+			username, password := loadAuthFromEnv()
 			c = append(c, NewFiler(b.Name, b.Host, username, password, b.AvailabilityZone))
 		} else {
 			c = append(c, NewFiler(b.Name, b.Host, b.Username, b.Password, b.AvailabilityZone))
@@ -180,4 +180,91 @@ func (f *myFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	}
 	s = s + "\n"
 	return []byte(s), nil
+}
+
+//volumes    []*NetappVolume
+//aggregates []*NetappAggregate
+
+type FilerCollector struct {
+	*Filer
+
+	volume    *prometheus.Desc
+	aggregate *prometheus.Desc
+
+	up, scrapeDuration prometheus.Gauge
+	scrapesTotal       prometheus.Counter
+	lastScrapeTime     time.Time
+}
+
+func NewFilerCollector(f *Filer) prometheus.Collector {
+	volumeLabels := []string{
+		"project_id",
+		"share_id",
+		"filer",
+		"vserver",
+		"volume",
+		"metric",
+	}
+	aggregateLabels := []string{
+		"availability_zone",
+		"filer",
+		"node",
+		"aggregate",
+		"metric",
+	}
+	c := &FilerCollector{
+		//Filer: f,
+		volume: prometheus.NewDesc(
+			"netapp_capacity_svm",
+			"Netapp Volume Metrics",
+			volumeLabels,
+			nil,
+		),
+		aggregate: prometheus.NewDesc(
+			"netapp_capacity_aggregate",
+			"Netapp Aggregate Metrics",
+			aggregateLabels,
+			nil,
+		),
+		up: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: "netapp",
+			Subsystem: f.Name,
+			Name:      "up",
+			Help:      "'1' if the last scrape of filer was successful, '0' otherwise.",
+		}),
+		scrapeDuration: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: "netapp",
+			Subsystem: f.Name,
+			Name:      "scrape_duration_seconds",
+			Help:      "The duration it took to scrape filer.",
+		}),
+		scrapesTotal: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: "netapp",
+			Subsystem: f.Name,
+			Name:      "scrape_total",
+			Help:      "The total number of filer scrapes.",
+		}),
+		lastScrapeTime: time.Time{},
+	}
+
+	return c
+}
+
+func (c *FilerCollector) Collect(chan<- prometheus.Metric) {
+	if time.Now().Sub(c.lastScrapeTime).Seconds() > *sleepTime {
+		c.lastScrapeTime = time.Now()
+
+		for _, f := range filers {
+			f.getVolumeList()
+		}
+
+	}
+}
+
+func (c *FilerCollector) Describe(ch chan<- *prometheus.Desc) {
+	ch <- c.volume
+	ch <- c.aggregate
+	ch <- c.up.Desc()
+	ch <- c.scrapesTotal.Desc()
+	ch <- c.scrapeDuration.Desc()
 }

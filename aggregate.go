@@ -4,7 +4,7 @@ import (
 	"github.com/pepabo/go-netapp/netapp"
 )
 
-type Aggregate struct {
+type NetappAggregate struct {
 	AvailabilityZone    string
 	FilerName           string
 	Name                string
@@ -18,7 +18,7 @@ type Aggregate struct {
 	PhysicalUsedPercent int
 }
 
-func (f *Filer) GetNetappAggregate(r chan<- *Aggregate, done chan<- struct{}) {
+func (f *Filer) GetNetappAggregate(r chan<- *NetappAggregate, done chan<- struct{}) {
 	ff := new(bool)
 	*ff = false
 	opts := &netapp.AggrOptions{
@@ -37,7 +37,7 @@ func (f *Filer) GetNetappAggregate(r chan<- *Aggregate, done chan<- struct{}) {
 	logger.Printf("%s: %d aggregates fetched", f.Host, len(aggrs))
 
 	for _, n := range aggrs {
-		r <- &Aggregate{
+		r <- &NetappAggregate{
 			FilerName:           f.Name,
 			AvailabilityZone:    f.AvailabilityZone,
 			Name:                n.AggregateName,

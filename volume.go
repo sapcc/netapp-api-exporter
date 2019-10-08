@@ -29,7 +29,7 @@ type NetappVolume struct {
 	PercentageTotalSpaceSaved         string
 }
 
-func (f *Filer) GetNetappVolume(r chan<- *NetappVolume, done chan<- struct{}) {
+func (f *Filer) GetNetappVolume() (volumes []*NetappVolume, err error) {
 	volumeOptions := netapp.VolumeOptions{
 		MaxRecords: 20,
 		DesiredAttributes: &netapp.VolumeQuery{
@@ -59,10 +59,14 @@ func (f *Filer) GetNetappVolume(r chan<- *NetappVolume, done chan<- struct{}) {
 		},
 	}
 
-	volumes := f.getVolumeList(&volumeOptions)
-	logger.Printf("%s: %d volumes fetched", f.Host, len(volumes))
+	vols, err := f.getVolumeList(&volumeOptions)
+	if err != nil {
+		return nil, err
+	} else {
+		logger.Printf("%s: %d volumes fetched", f.Host, len(vols))
+	}
 
-	for _, vol := range volumes {
+	for _, vol := range vols {
 		nv := &NetappVolume{FilerName: f.Name}
 		if vol.VolumeIDAttributes != nil {
 			nv.Vserver = vol.VolumeIDAttributes.OwningVserverName
@@ -102,23 +106,19 @@ func (f *Filer) GetNetappVolume(r chan<- *NetappVolume, done chan<- struct{}) {
 				nv.ShareID = shareID
 				nv.ShareName = shareName
 				nv.ProjectID = projectID
-				r <- nv
 			}
 		}
+		volumes = append(volumes, nv)
 	}
 
-	// done chanel will trigger cleanup procedure of the exporters, where
-	// volumes that are not available anymore will be deleted from exporter
-	if len(volumes) != 0 {
-		// Don't send data to done channel when no volume is fetched
-		done <- struct{}{}
-	}
+	return volumes, err
+
 }
 
-func (f *Filer) getVolumeList(opts *netapp.VolumeOptions) (res []netapp.VolumeInfo) {
+func (f *Filer) getVolumeList(opts *netapp.VolumeOptions) (res []netapp.VolumeInfo, err error) {
 	pageHandler := func(r netapp.VolumeListPagesResponse) bool {
 		if r.Error != nil {
-			logger.Warnf("%s", r.Error)
+			err = r.Error
 			return false
 		}
 		res = append(res, r.Response.Results.AttributesList...)
@@ -147,8 +147,7 @@ func parseVolumeComment(c string) (shareID string, shareName string, projectID s
 	}
 
 	if shareID == "" || projectID == "" {
-		err = fmt.Errorf("Failed to parse share_id/project from '%s'", c)
+		err = fmt.Errorf("failed to parse share_id/project from '%s'", c)
 	}
-	// logger.Debugln(c, "---", shareID, shareName, projectID)
 	return
 }

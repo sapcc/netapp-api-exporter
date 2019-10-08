@@ -10,10 +10,6 @@ import (
 type Filer struct {
 	FilerBase
 	NetappClient *netapp.Client
-	volChan      chan *NetappVolume
-	aggrChan     chan *Aggregate
-	getVolDone   chan struct{}
-	getAggrDone  chan struct{}
 }
 
 type FilerBase struct {
@@ -33,17 +29,10 @@ func NewFiler(name, host, username, password, az string) *Filer {
 			Password:         password,
 			AvailabilityZone: az,
 		},
-		volChan:     make(chan *NetappVolume),
-		aggrChan:    make(chan *Aggregate),
-		getVolDone:  make(chan struct{}),
-		getAggrDone: make(chan struct{}),
+		NetappClient: newNetappClient(host, username, password),
 	}
 	f.Init()
 	return f
-}
-
-func (f *Filer) Init() {
-	f.NetappClient = newNetappClient(f.Host, f.Username, f.Password)
 }
 
 func newNetappClient(host, username, password string) *netapp.Client {

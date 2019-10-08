@@ -87,7 +87,7 @@ func (vg *VolumeGaugeVec) DeleteMetric(v *NetappVolume) {
 	vg.DeleteLabelValues(v.ProjectID, v.ShareID, v.FilerName, v.Vserver, v.Volume, "percentage_total_saved")
 }
 
-func (ag *AggrGaugeVec) SetMetric(v *Aggregate) {
+func (ag *AggrGaugeVec) SetMetric(v *NetappAggregate) {
 	_percentrageUsed, _ := strconv.ParseFloat(v.PercentUsedCapacity, 64)
 	ag.WithLabelValues(v.AvailabilityZone, v.FilerName, v.OwnerName, v.Name, "size_used").Set(float64(v.SizeUsed))
 	ag.WithLabelValues(v.AvailabilityZone, v.FilerName, v.OwnerName, v.Name, "size_available").Set(float64(v.SizeAvailable))
