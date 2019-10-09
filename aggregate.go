@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/pepabo/go-netapp/netapp"
+	"strconv"
 )
 
 type NetappAggregate struct {
@@ -9,16 +10,16 @@ type NetappAggregate struct {
 	FilerName           string
 	Name                string
 	OwnerName           string
-	SizeUsed            int
-	SizeTotal           int
-	SizeAvailable       int
-	TotalReservedSpace  int
-	PercentUsedCapacity string
-	PhysicalUsed        int
-	PhysicalUsedPercent int
+	SizeUsed            float64
+	SizeTotal           float64
+	SizeAvailable       float64
+	TotalReservedSpace  float64
+	PercentUsedCapacity float64
+	PhysicalUsed        float64
+	PhysicalUsedPercent float64
 }
 
-func (f *Filer) GetNetappAggregate(r chan<- *NetappAggregate, done chan<- struct{}) {
+func (f *FilerManager) GetNetappAggregate() (aggregates []*NetappAggregate, err error) {
 	ff := new(bool)
 	*ff = false
 	opts := &netapp.AggrOptions{
@@ -33,34 +34,35 @@ func (f *Filer) GetNetappAggregate(r chan<- *NetappAggregate, done chan<- struct
 		},
 	}
 
-	aggrs := f.getAggrList(opts)
-	logger.Printf("%s: %d aggregates fetched", f.Host, len(aggrs))
+	aggs, err := f.getAggrList(opts)
 
-	for _, n := range aggrs {
-		r <- &NetappAggregate{
-			FilerName:           f.Name,
-			AvailabilityZone:    f.AvailabilityZone,
-			Name:                n.AggregateName,
-			OwnerName:           n.AggrOwnershipAttributes.OwnerName,
-			SizeUsed:            n.AggrSpaceAttributes.SizeUsed,
-			SizeTotal:           n.AggrSpaceAttributes.SizeTotal,
-			SizeAvailable:       n.AggrSpaceAttributes.SizeAvailable,
-			TotalReservedSpace:  n.AggrSpaceAttributes.TotalReservedSpace,
-			PercentUsedCapacity: n.AggrSpaceAttributes.PercentUsedCapacity,
-			PhysicalUsed:        n.AggrSpaceAttributes.PhysicalUsed,
-			PhysicalUsedPercent: n.AggrSpaceAttributes.PhysicalUsedPercent,
+	if err == nil {
+		logger.Printf("%s: %d aggregates fetched", f.Host, len(aggs))
+
+		for _, n := range aggs {
+			percentUsedCapacity, _ := strconv.ParseFloat(n.AggrSpaceAttributes.PercentUsedCapacity, 64)
+			aggregates = append(aggregates, &NetappAggregate{
+				AvailabilityZone:    f.AvailabilityZone,
+				FilerName:           f.Name,
+				Name:                n.AggregateName,
+				OwnerName:           n.AggrOwnershipAttributes.OwnerName,
+				SizeUsed:            float64(n.AggrSpaceAttributes.SizeUsed),
+				SizeTotal:           float64(n.AggrSpaceAttributes.SizeTotal),
+				SizeAvailable:       float64(n.AggrSpaceAttributes.SizeAvailable),
+				TotalReservedSpace:  float64(n.AggrSpaceAttributes.TotalReservedSpace),
+				PercentUsedCapacity: percentUsedCapacity,
+				PhysicalUsed:        float64(n.AggrSpaceAttributes.PhysicalUsed),
+				PhysicalUsedPercent: float64(n.AggrSpaceAttributes.PhysicalUsedPercent),
+			})
 		}
 	}
-
-	if len(aggrs) != 0 {
-		done <- struct{}{}
-	}
+	return
 }
 
-func (f *Filer) getAggrList(opts *netapp.AggrOptions) (res []netapp.AggrInfo) {
+func (f *FilerManager) getAggrList(opts *netapp.AggrOptions) (res []netapp.AggrInfo, err error) {
 	pageHandler := func(r netapp.AggrListPagesResponse) bool {
 		if r.Error != nil {
-			logger.Warnf("%s", r.Error)
+			err = r.Error
 			return false
 		}
 		res = append(res, r.Response.Results.AggrAttributes...)

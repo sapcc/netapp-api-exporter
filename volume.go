@@ -2,10 +2,9 @@ package main
 
 import (
 	"fmt"
-	"regexp"
-	"strings"
-
 	"github.com/pepabo/go-netapp/netapp"
+	"regexp"
+	"strconv"
 )
 
 type NetappVolume struct {
@@ -17,20 +16,20 @@ type NetappVolume struct {
 	Volume                            string
 	Comment                           string
 	Size                              int
-	SizeTotal                         string
-	SizeAvailable                     string
-	SizeUsed                          string
-	SizeUsedBySnapshots               string
-	SizeAvailableForSnapshots         string
-	SnapshotReserveSize               string
-	PercentageSizeUsed                string
-	PercentageCompressionSpaceSaved   string
-	PercentageDeduplicationSpaceSaved string
-	PercentageTotalSpaceSaved         string
+	SizeTotal                         float64
+	SizeAvailable                     float64
+	SizeUsed                          float64
+	SizeUsedBySnapshots               float64
+	SizeAvailableForSnapshots         float64
+	SnapshotReserveSize               float64
+	PercentageSizeUsed                float64
+	PercentageCompressionSpaceSaved   float64
+	PercentageDeduplicationSpaceSaved float64
+	PercentageTotalSpaceSaved         float64
 }
 
 // GetNetappVolume() returns list of volumes from netapp filer.
-func (f *Filer) GetNetappVolume() (volumes []*NetappVolume, err error) {
+func (f *FilerManager) GetNetappVolume() (volumes []*NetappVolume, err error) {
 	volumeOptions := netapp.VolumeOptions{
 		MaxRecords: 20,
 		DesiredAttributes: &netapp.VolumeQuery{
@@ -61,62 +60,70 @@ func (f *Filer) GetNetappVolume() (volumes []*NetappVolume, err error) {
 	}
 
 	vols, err := f.getVolumeList(&volumeOptions)
-	if err != nil {
-		return nil, err
-	} else {
+
+	if err == nil {
 		logger.Printf("%s: %d volumes fetched", f.Host, len(vols))
-	}
-
-	for _, vol := range vols {
-		nv := &NetappVolume{FilerName: f.Name}
-		if vol.VolumeIDAttributes != nil {
-			nv.Vserver = vol.VolumeIDAttributes.OwningVserverName
-			nv.Volume = vol.VolumeIDAttributes.Name
-		}
-		if vol.VolumeSpaceAttributes != nil {
-			nv.Size = vol.VolumeSpaceAttributes.Size
-			nv.SizeAvailable = vol.VolumeSpaceAttributes.SizeAvailable
-			nv.SizeTotal = vol.VolumeSpaceAttributes.SizeTotal
-			nv.SizeUsed = vol.VolumeSpaceAttributes.SizeUsed
-			nv.SizeUsedBySnapshots = vol.VolumeSpaceAttributes.SizeUsedBySnapshots
-			nv.SizeAvailableForSnapshots = vol.VolumeSpaceAttributes.SizeAvailableForSnapshots
-			nv.SnapshotReserveSize = vol.VolumeSpaceAttributes.SnapshotReserveSize
-			nv.PercentageSizeUsed = vol.VolumeSpaceAttributes.PercentageSizeUsed
-		} else {
-			logger.Printf("%s has no VolumeSpaceAttributes", nv.Volume)
-		}
-		if vol.VolumeSisAttributes != nil {
-			nv.PercentageCompressionSpaceSaved = vol.VolumeSisAttributes.PercentageCompressionSpaceSaved
-			nv.PercentageDeduplicationSpaceSaved = vol.VolumeSisAttributes.PercentageDeduplicationSpaceSaved
-			nv.PercentageTotalSpaceSaved = vol.VolumeSisAttributes.PercentageTotalSpaceSaved
-		} else {
-			logger.Printf("%s has no VolumeSisAttributes", vol.VolumeIDAttributes.Name)
-			logger.Debugf("%+v", vol.VolumeIDAttributes)
-		}
-		if vol.VolumeIDAttributes.Comment == "" {
-			if !strings.Contains(vol.VolumeIDAttributes.Name, "root") &&
-				!strings.Contains(vol.VolumeIDAttributes.Name, "vol0") {
-				logger.Printf("%s (%s) does not have comment", vol.VolumeIDAttributes.Name, vol.VolumeIDAttributes.OwningVserverName)
+		for _, vol := range vols {
+			nv := &NetappVolume{FilerName: f.Name}
+			if vol.VolumeIDAttributes != nil {
+				nv.Vserver = vol.VolumeIDAttributes.OwningVserverName
+				nv.Volume = vol.VolumeIDAttributes.Name
 			}
-		} else {
-			// nv.ShareID, nv.ShareName, nv.ProjectID := parseVolumeComment(vol.VolumeIDAttributes.Comment)
-			shareID, shareName, projectID, err := parseVolumeComment(vol.VolumeIDAttributes.Comment)
-			if err != nil {
-				logger.Warn(err)
+			if vol.VolumeSpaceAttributes != nil {
+				v := vol.VolumeSpaceAttributes
+				sizeTotal, _ := strconv.ParseFloat(v.SizeTotal, 64)
+				sizeAvailable, _ := strconv.ParseFloat(v.SizeAvailable, 64)
+				sizeUsed, _ := strconv.ParseFloat(v.SizeUsed, 64)
+				sizeUsedBySnapshots, _ := strconv.ParseFloat(v.SizeUsedBySnapshots, 64)
+				sizeAvailableForSnapshots, _ := strconv.ParseFloat(v.SizeAvailableForSnapshots, 64)
+				snapshotReserveSize, _ := strconv.ParseFloat(v.SnapshotReserveSize, 64)
+				percentageSizeUsed, _ := strconv.ParseFloat(v.PercentageSizeUsed, 64)
+
+				nv.Size = vol.VolumeSpaceAttributes.Size
+				nv.SizeAvailable = sizeAvailable
+				nv.SizeTotal = sizeTotal
+				nv.SizeUsed = sizeUsed
+				nv.SizeUsedBySnapshots = sizeUsedBySnapshots
+				nv.SizeAvailableForSnapshots = sizeAvailableForSnapshots
+				nv.SnapshotReserveSize = snapshotReserveSize
+				nv.PercentageSizeUsed = percentageSizeUsed
 			} else {
-				nv.ShareID = shareID
-				nv.ShareName = shareName
-				nv.ProjectID = projectID
+				logger.Warnf("%s has no VolumeSpaceAttributes", nv.Volume)
 			}
+			if vol.VolumeSisAttributes != nil {
+				v := vol.VolumeSisAttributes
+				percentageCompressionSpaceSaved, _ := strconv.ParseFloat(v.PercentageCompressionSpaceSaved, 64)
+				percentageDeduplicationSpaceSaved, _ := strconv.ParseFloat(v.PercentageDeduplicationSpaceSaved, 64)
+				percentageTotalSpaceSaved, _ := strconv.ParseFloat(v.PercentageTotalSpaceSaved, 64)
+
+				nv.PercentageCompressionSpaceSaved = percentageCompressionSpaceSaved
+				nv.PercentageDeduplicationSpaceSaved = percentageDeduplicationSpaceSaved
+				nv.PercentageTotalSpaceSaved = percentageTotalSpaceSaved
+			} else {
+				logger.Warnf("%s has no VolumeSisAttributes", vol.VolumeIDAttributes.Name)
+				logger.Debugf("%+v", vol.VolumeIDAttributes)
+			}
+			if vol.VolumeIDAttributes.Comment != "" {
+				shareID, shareName, projectID, err := parseVolumeComment(vol.VolumeIDAttributes.Comment)
+				if err != nil {
+					logger.Warn(err)
+				} else {
+					nv.ShareID = shareID
+					nv.ShareName = shareName
+					nv.ProjectID = projectID
+				}
+			} else {
+				//logger.Warnf("%s (%s) does not have comment",
+				//	vol.VolumeIDAttributes.Name, vol.VolumeIDAttributes.OwningVserverName)
+			}
+			volumes = append(volumes, nv)
 		}
-		volumes = append(volumes, nv)
 	}
 
-	return volumes, err
-
+	return
 }
 
-func (f *Filer) getVolumeList(opts *netapp.VolumeOptions) (res []netapp.VolumeInfo, err error) {
+func (f *FilerManager) getVolumeList(opts *netapp.VolumeOptions) (res []netapp.VolumeInfo, err error) {
 	pageHandler := func(r netapp.VolumeListPagesResponse) bool {
 		if r.Error != nil {
 			err = r.Error
@@ -130,12 +137,8 @@ func (f *Filer) getVolumeList(opts *netapp.VolumeOptions) (res []netapp.VolumeIn
 }
 
 func parseVolumeComment(c string) (shareID string, shareName string, projectID string, err error) {
-	// r := regexp.MustCompile(`((?P<k1>\w+): (?P<v1>[\w-]+))(, ((?P<k2>\w+): (?P<v2>[\w-]+))(, ((?P<k3>\w+): (?P<v3>[\w-]+)))?)?`)
-	// matches := r.FindStringSubmatch(c)
-
 	r := regexp.MustCompile(`(\w+): ([\w-]+)`)
 	matches := r.FindAllStringSubmatch(c, 3)
-
 	for _, m := range matches {
 		switch m[1] {
 		case "share_id":
@@ -146,7 +149,6 @@ func parseVolumeComment(c string) (shareID string, shareName string, projectID s
 			projectID = m[2]
 		}
 	}
-
 	if shareID == "" || projectID == "" {
 		err = fmt.Errorf("failed to parse share_id/project from '%s'", c)
 	}

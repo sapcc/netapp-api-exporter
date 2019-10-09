@@ -2,17 +2,26 @@ package main
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/pepabo/go-netapp/netapp"
 )
 
-type Filer struct {
-	FilerBase
-	NetappClient *netapp.Client
+type FilerManager struct {
+	Filer
+	NetappClient  *netapp.Client
+	Volumes       []*NetappVolume
+	Aggregates    []*NetappAggregate
+	volMaxAge     time.Duration
+	aggMaxAge     time.Duration
+	lastVolScrape time.Time
+	lastAggScrape time.Time
+	mtxVol        sync.Mutex // protects lastVolScrape and Volumes
+	mtxAgg        sync.Mutex // protects lastAggScrape and Aggregates
 }
 
-type FilerBase struct {
+type Filer struct {
 	Name             string `yaml:"name"`
 	Host             string `yaml:"host"`
 	Username         string `yaml:"username"`
@@ -20,18 +29,13 @@ type FilerBase struct {
 	AvailabilityZone string `yaml:"availability_zone"`
 }
 
-func NewFiler(name, host, username, password, az string) *Filer {
-	f := &Filer{
-		FilerBase: FilerBase{
-			Name:             name,
-			Host:             host,
-			Username:         username,
-			Password:         password,
-			AvailabilityZone: az,
-		},
-		NetappClient: newNetappClient(host, username, password),
+func NewFilerManager(f Filer) *FilerManager {
+	return &FilerManager{
+		Filer:        f,
+		volMaxAge:    5 * time.Minute,
+		aggMaxAge:    5 * time.Minute,
+		NetappClient: newNetappClient(f.Host, f.Username, f.Password),
 	}
-	return f
 }
 
 func newNetappClient(host, username, password string) *netapp.Client {
