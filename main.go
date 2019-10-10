@@ -24,7 +24,7 @@ var (
 	debug         = kingpin.Flag("debug", "Debug mode").Short('d').Bool()
 	logger        = logrus.New()
 
-	filers []*FilerManager
+	filers []Filer
 )
 
 type myFormatter struct{}
@@ -62,8 +62,13 @@ func main() {
 	reg := prometheus.NewPedanticRegistry()
 
 	for _, f := range filers {
-		logger.Println("Register filer:", f.Filer)
-		RegisterFilerCollector(f, reg)
+		logger.Println("Register filer:", f.FilerBase)
+		cc := NewFilerCollector(f)
+		labels := prometheus.Labels{
+			"filer":             f.Name,
+			"availability_zone": f.AvailabilityZone,
+		}
+		prometheus.WrapRegistererWith(labels, reg).MustRegister(cc)
 	}
 
 	reg.MustRegister(
@@ -75,8 +80,8 @@ func main() {
 	logger.Fatal(http.ListenAndServe(*listenAddress+":9108", nil))
 }
 
-func loadFilerFromFile(fileName string) (c []*FilerManager) {
-	var filers []Filer
+func loadFilerFromFile(fileName string) (c []Filer) {
+	var filers []FilerBase
 	if yamlFile, err := ioutil.ReadFile(fileName); err != nil {
 		logger.Fatal("read file ", fileName, err)
 	} else {
@@ -91,12 +96,12 @@ func loadFilerFromFile(fileName string) (c []*FilerManager) {
 			f.Username = username
 			f.Password = password
 		}
-		c = append(c, NewFilerManager(f))
+		c = append(c, NewFiler(f))
 	}
 	return
 }
 
-func loadFilers() (filers []*FilerManager) {
+func loadFilers() (filers []Filer) {
 	if os.Getenv("DEV") != "" {
 		filers = loadFilerFromEnv()
 	} else {
@@ -105,13 +110,13 @@ func loadFilers() (filers []*FilerManager) {
 	return
 }
 
-func loadFilerFromEnv() (c []*FilerManager) {
+func loadFilerFromEnv() (c []Filer) {
 	name := os.Getenv("NETAPP_NAME")
 	host := os.Getenv("NETAPP_HOST")
 	username := os.Getenv("NETAPP_USERNAME")
 	password := os.Getenv("NETAPP_PASSWORD")
 	az := os.Getenv("NETAPP_AZ")
-	f := NewFilerManager(Filer{name, host, username, password, az})
+	f := NewFiler(FilerBase{name, host, username, password, az})
 	c = append(c, f)
 	return
 }

@@ -2,7 +2,10 @@ package main
 
 import (
 	"github.com/pepabo/go-netapp/netapp"
+	"github.com/prometheus/client_golang/prometheus"
 	"strconv"
+	"sync"
+	"time"
 )
 
 type NetappAggregate struct {
@@ -19,7 +22,94 @@ type NetappAggregate struct {
 	PhysicalUsedPercent float64
 }
 
-func (f *FilerManager) GetNetappAggregate() (aggregates []*NetappAggregate, err error) {
+type AggrManager struct {
+	Aggregates    []*NetappAggregate
+	mtx           sync.Mutex
+	lastFetchTime time.Time
+	maxAge        time.Duration
+}
+
+type aggregateMetrics []struct {
+	desc    *prometheus.Desc
+	valType prometheus.ValueType
+	evalFn  func(agg *NetappAggregate) float64
+}
+
+var (
+	aggregateLabels = []string{
+		"node",
+		"aggregate",
+	}
+
+	aggMetrics = aggregateMetrics{
+		{
+			desc: prometheus.NewDesc(
+				"netapp_aggregate_total_size_bytes",
+				"Netapp Aggregate Metrics: total size",
+				aggregateLabels,
+				nil),
+			valType: prometheus.GaugeValue,
+			evalFn:  func(m *NetappAggregate) float64 { return m.SizeTotal },
+		}, {
+			desc: prometheus.NewDesc(
+				"netapp_aggregate_available_bytes",
+				"Netapp Aggregate Metrics: available size",
+				aggregateLabels,
+				nil),
+			valType: prometheus.GaugeValue,
+			evalFn:  func(m *NetappAggregate) float64 { return m.SizeAvailable },
+		}, {
+			desc: prometheus.NewDesc(
+				"netapp_aggregate_used_bytes",
+				"Netapp Aggregate Metrics: used size",
+				aggregateLabels,
+				nil),
+			valType: prometheus.GaugeValue,
+			evalFn:  func(m *NetappAggregate) float64 { return m.SizeUsed },
+		}, {
+			desc: prometheus.NewDesc(
+				"netapp_aggregate_used_percentage",
+				"Netapp Aggregate Metrics: used percentage",
+				aggregateLabels,
+				nil),
+			valType: prometheus.GaugeValue,
+			evalFn:  func(m *NetappAggregate) float64 { return m.PercentUsedCapacity },
+		}, {
+			desc: prometheus.NewDesc(
+				"netapp_aggregate_physical_used_bytes",
+				"Netapp Aggregate Metrics: physical used size",
+				aggregateLabels,
+				nil),
+			valType: prometheus.GaugeValue,
+			evalFn:  func(m *NetappAggregate) float64 { return m.PhysicalUsed },
+		}, {
+			desc: prometheus.NewDesc(
+				"netapp_aggregate_physical_percentage",
+				"Netapp Aggregate Metrics: physical used percentage",
+				aggregateLabels,
+				nil),
+			valType: prometheus.GaugeValue,
+			evalFn:  func(m *NetappAggregate) float64 { return m.PhysicalUsedPercent },
+		},
+	}
+)
+
+func (a AggrManager) Describe(ch chan<- *prometheus.Desc) {
+	for _, v := range aggMetrics {
+		ch <- v.desc
+	}
+}
+
+func (a AggrManager) Collect(ch chan<- prometheus.Metric) {
+	for _, v := range a.Aggregates {
+		labels := []string{v.OwnerName, v.Name}
+		for _, m := range aggMetrics {
+			ch <- prometheus.MustNewConstMetric(m.desc, m.valType, m.evalFn(v), labels...)
+		}
+	}
+}
+
+func (a AggrManager) Fetch(f Filer) (aggregates []*NetappAggregate, err error) {
 	ff := new(bool)
 	*ff = false
 	opts := &netapp.AggrOptions{
@@ -34,12 +124,11 @@ func (f *FilerManager) GetNetappAggregate() (aggregates []*NetappAggregate, err 
 		},
 	}
 
-	aggs, err := f.getAggrList(opts)
+	aggrs, err := a.fetch(f, opts)
 
 	if err == nil {
-		logger.Printf("%s: %d aggregates fetched", f.Host, len(aggs))
-
-		for _, n := range aggs {
+		logger.Printf("%s: %d aggregates fetched", f.Host, len(aggrs))
+		for _, n := range aggrs {
 			percentUsedCapacity, _ := strconv.ParseFloat(n.AggrSpaceAttributes.PercentUsedCapacity, 64)
 			aggregates = append(aggregates, &NetappAggregate{
 				AvailabilityZone:    f.AvailabilityZone,
@@ -59,7 +148,7 @@ func (f *FilerManager) GetNetappAggregate() (aggregates []*NetappAggregate, err 
 	return
 }
 
-func (f *FilerManager) getAggrList(opts *netapp.AggrOptions) (res []netapp.AggrInfo, err error) {
+func (a AggrManager) fetch(f Filer, opts *netapp.AggrOptions) (res []netapp.AggrInfo, err error) {
 	pageHandler := func(r netapp.AggrListPagesResponse) bool {
 		if r.Error != nil {
 			err = r.Error

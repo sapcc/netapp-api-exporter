@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/pepabo/go-netapp/netapp"
+	"github.com/prometheus/client_golang/prometheus"
 	"regexp"
 	"strconv"
 )
@@ -28,8 +29,116 @@ type NetappVolume struct {
 	PercentageTotalSpaceSaved         float64
 }
 
+type volumeMetrics []struct {
+	desc    *prometheus.Desc
+	valType prometheus.ValueType
+	evalFn  func(volume *NetappVolume) float64
+}
+
+var (
+	volumeLabels = []string{
+		"vserver",
+		"volume",
+		"project_id",
+		"share_id",
+	}
+
+	volMetrics = volumeMetrics{
+		{
+			desc: prometheus.NewDesc(
+				"netapp_volume_total_size_bytes",
+				"Netapp Volume Metrics: total size",
+				volumeLabels,
+				nil),
+			valType: prometheus.GaugeValue,
+			evalFn:  func(v *NetappVolume) float64 { return v.SizeTotal },
+		}, {
+			desc: prometheus.NewDesc(
+				"netapp_volume_used_bytes",
+				"Netapp Volume Metrics: used size",
+				volumeLabels,
+				nil),
+			valType: prometheus.GaugeValue,
+			evalFn:  func(v *NetappVolume) float64 { return v.SizeUsed },
+		}, {
+			desc: prometheus.NewDesc(
+				"netapp_volume_available_bytes",
+				"Netapp Volume Metrics: available size",
+				volumeLabels,
+				nil),
+			valType: prometheus.GaugeValue,
+			evalFn:  func(v *NetappVolume) float64 { return v.SizeAvailable },
+		}, {
+			desc: prometheus.NewDesc(
+				"netapp_volume_snapshot_used_bytes",
+				"Netapp Volume Metrics: size used by snapshots",
+				volumeLabels,
+				nil),
+			valType: prometheus.GaugeValue,
+			evalFn:  func(v *NetappVolume) float64 { return v.SizeUsedBySnapshots },
+		}, {
+			desc: prometheus.NewDesc(
+				"netapp_volume_snapshot_available_bytes",
+				"Netapp Volume Metrics: size available for snapshots",
+				volumeLabels,
+				nil),
+			valType: prometheus.GaugeValue,
+			evalFn:  func(v *NetappVolume) float64 { return v.SizeAvailableForSnapshots },
+		}, {
+			desc: prometheus.NewDesc(
+				"netapp_volume_snapshot_reserved_bytes",
+				"Netapp Volume Metrics: size reserved for snapshots",
+				volumeLabels,
+				nil),
+			valType: prometheus.GaugeValue,
+			evalFn:  func(v *NetappVolume) float64 { return v.SnapshotReserveSize },
+		}, {
+			desc: prometheus.NewDesc(
+				"netapp_volume_used_percentage",
+				"Netapp Volume Metrics: used percentage ",
+				volumeLabels,
+				nil),
+			valType: prometheus.GaugeValue,
+			evalFn:  func(v *NetappVolume) float64 { return v.PercentageSizeUsed },
+		}, {
+			desc: prometheus.NewDesc(
+				"netapp_volume_saved_percentage",
+				"Netapp Volume Metrics: percentage of space compression and deduplication saved",
+				volumeLabels,
+				nil),
+			valType: prometheus.GaugeValue,
+			evalFn:  func(v *NetappVolume) float64 { return v.PercentageTotalSpaceSaved },
+		}, {
+			desc: prometheus.NewDesc(
+				"netapp_volume_compression_saved_percentage",
+				"Netapp Volume Metrics: percentage of space compression saved",
+				volumeLabels,
+				nil),
+			valType: prometheus.GaugeValue,
+			evalFn:  func(v *NetappVolume) float64 { return v.PercentageCompressionSpaceSaved },
+		}, {
+			desc: prometheus.NewDesc(
+				"netapp_volume_deduplication_saved_percentage",
+				"Netapp Volume Metrics: percentage of space deduplication saved",
+				volumeLabels,
+				nil),
+			valType: prometheus.GaugeValue,
+			evalFn:  func(v *NetappVolume) float64 { return v.PercentageDeduplicationSpaceSaved },
+		},
+	}
+)
+
+func volCollect(volumes []*NetappVolume, ch chan<- prometheus.Metric) {
+	for _, v := range volumes {
+		labels := []string{v.Vserver, v.Volume, v.ProjectID, v.ShareID}
+		for _, m := range volMetrics {
+			ch <- prometheus.MustNewConstMetric(m.desc, m.valType, m.evalFn(v), labels...)
+		}
+	}
+}
+
 // GetNetappVolume() returns list of volumes from netapp filer.
-func (f *FilerManager) GetNetappVolume() (volumes []*NetappVolume, err error) {
+func (f *Filer) GetNetappVolume() (volumes []*NetappVolume, err error) {
 	volumeOptions := netapp.VolumeOptions{
 		MaxRecords: 20,
 		DesiredAttributes: &netapp.VolumeQuery{
@@ -123,7 +232,7 @@ func (f *FilerManager) GetNetappVolume() (volumes []*NetappVolume, err error) {
 	return
 }
 
-func (f *FilerManager) getVolumeList(opts *netapp.VolumeOptions) (res []netapp.VolumeInfo, err error) {
+func (f *Filer) getVolumeList(opts *netapp.VolumeOptions) (res []netapp.VolumeInfo, err error) {
 	pageHandler := func(r netapp.VolumeListPagesResponse) bool {
 		if r.Error != nil {
 			err = r.Error
