@@ -44,7 +44,7 @@ var (
 	aggMetrics = aggregateMetrics{
 		{
 			desc: prometheus.NewDesc(
-				"netapp_aggregate_total_size_bytes",
+				"netapp_aggregate_total_bytes",
 				"Netapp Aggregate Metrics: total size",
 				aggregateLabels,
 				nil),

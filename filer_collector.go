@@ -19,9 +19,9 @@ func NewFilerCollector(filer Filer) *FilerCollector {
 		volManager:  &VolumeManager{maxAge: 5 * time.Minute},
 		scrapesFailure: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: "netapp",
-			Subsystem: "exporter",
+			Subsystem: "filer",
 			Name:      "scrape_failure",
-			Help:      "The number of filer scrape failures.",
+			Help:      "The number of scraping failures of filer.",
 		}),
 	}
 }

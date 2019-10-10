@@ -55,7 +55,7 @@ var (
 	volMetrics = volumeMetrics{
 		{
 			desc: prometheus.NewDesc(
-				"netapp_volume_total_size_bytes",
+				"netapp_volume_total_bytes",
 				"Netapp Volume Metrics: total size",
 				volumeLabels,
 				nil),
@@ -111,7 +111,7 @@ var (
 			evalFn:  func(v *NetappVolume) float64 { return v.PercentageSizeUsed },
 		}, {
 			desc: prometheus.NewDesc(
-				"netapp_volume_saved_percentage",
+				"netapp_volume_saved_total_percentage",
 				"Netapp Volume Metrics: percentage of space compression and deduplication saved",
 				volumeLabels,
 				nil),
@@ -119,7 +119,7 @@ var (
 			evalFn:  func(v *NetappVolume) float64 { return v.PercentageTotalSpaceSaved },
 		}, {
 			desc: prometheus.NewDesc(
-				"netapp_volume_compression_saved_percentage",
+				"netapp_volume_saved_compression_percentage",
 				"Netapp Volume Metrics: percentage of space compression saved",
 				volumeLabels,
 				nil),
@@ -127,7 +127,7 @@ var (
 			evalFn:  func(v *NetappVolume) float64 { return v.PercentageCompressionSpaceSaved },
 		}, {
 			desc: prometheus.NewDesc(
-				"netapp_volume_deduplication_saved_percentage",
+				"netapp_volume_saved_deduplication_percentage",
 				"Netapp Volume Metrics: percentage of space deduplication saved",
 				volumeLabels,
 				nil),
