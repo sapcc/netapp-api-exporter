@@ -6,6 +6,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"regexp"
 	"strconv"
+	"sync"
+	"time"
 )
 
 type NetappVolume struct {
@@ -27,6 +29,13 @@ type NetappVolume struct {
 	PercentageCompressionSpaceSaved   float64
 	PercentageDeduplicationSpaceSaved float64
 	PercentageTotalSpaceSaved         float64
+}
+
+type VolumeManager struct {
+	Volumes       []*NetappVolume
+	mtx           sync.Mutex
+	lastFetchTime time.Time
+	maxAge        time.Duration
 }
 
 type volumeMetrics []struct {
@@ -128,8 +137,14 @@ var (
 	}
 )
 
-func volCollect(volumes []*NetappVolume, ch chan<- prometheus.Metric) {
-	for _, v := range volumes {
+func (v VolumeManager) Describe(ch chan<- *prometheus.Desc) {
+	for _, v := range volMetrics {
+		ch <- v.desc
+	}
+}
+
+func (v VolumeManager) Collect(ch chan<- prometheus.Metric) {
+	for _, v := range v.Volumes {
 		labels := []string{v.Vserver, v.Volume, v.ProjectID, v.ShareID}
 		for _, m := range volMetrics {
 			ch <- prometheus.MustNewConstMetric(m.desc, m.valType, m.evalFn(v), labels...)
@@ -137,8 +152,7 @@ func volCollect(volumes []*NetappVolume, ch chan<- prometheus.Metric) {
 	}
 }
 
-// GetNetappVolume() returns list of volumes from netapp filer.
-func (f *Filer) GetNetappVolume() (volumes []*NetappVolume, err error) {
+func (v VolumeManager) Fetch(f Filer) (volumes []*NetappVolume, err error) {
 	volumeOptions := netapp.VolumeOptions{
 		MaxRecords: 20,
 		DesiredAttributes: &netapp.VolumeQuery{
@@ -168,7 +182,7 @@ func (f *Filer) GetNetappVolume() (volumes []*NetappVolume, err error) {
 		},
 	}
 
-	vols, err := f.getVolumeList(&volumeOptions)
+	vols, err := v.fetch(f, &volumeOptions)
 
 	if err == nil {
 		logger.Printf("%s: %d volumes fetched", f.Host, len(vols))
@@ -177,6 +191,10 @@ func (f *Filer) GetNetappVolume() (volumes []*NetappVolume, err error) {
 			if vol.VolumeIDAttributes != nil {
 				nv.Vserver = vol.VolumeIDAttributes.OwningVserverName
 				nv.Volume = vol.VolumeIDAttributes.Name
+			} else {
+				// Skip if ID Attributes missing
+				logger.Warnf("missing `VolumeIDAttributes` in %+v", vol)
+				continue
 			}
 			if vol.VolumeSpaceAttributes != nil {
 				v := vol.VolumeSpaceAttributes
@@ -232,7 +250,7 @@ func (f *Filer) GetNetappVolume() (volumes []*NetappVolume, err error) {
 	return
 }
 
-func (f *Filer) getVolumeList(opts *netapp.VolumeOptions) (res []netapp.VolumeInfo, err error) {
+func (v VolumeManager) fetch(f Filer, opts *netapp.VolumeOptions) (res []netapp.VolumeInfo, err error) {
 	pageHandler := func(r netapp.VolumeListPagesResponse) bool {
 		if r.Error != nil {
 			err = r.Error
