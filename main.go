@@ -1,7 +1,5 @@
 package main
 
-//"github.com/pepabo/go-netapp/netapp"
-//"strconv"
 import (
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
