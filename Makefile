@@ -27,7 +27,7 @@ docker: bin/${app}_linux_amd64
 dev: 
 	rm -f bin/${app}_dev
 	go build -o bin/${app}_dev
-	DEV=1 ./bin/${app}_dev -l localhost -w 30
+	DEV=1 ./bin/${app}_dev -l localhost
 
 .PHONY: clean
 clean:
