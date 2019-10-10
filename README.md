@@ -1,40 +1,43 @@
 # Netapp API Exporter
-Prometheus exporter for Netapp ONTAP api. It fetches data from Netapp's filer and exports  them under the prometheus metric `netapp_capacity_svm` at port 9108. Labels of `netapp_capacity_svm` include
-* Project_id
-* Filer
-* Vserver
-* Volume
-* Metric 
-<!-- * ("total", "available", "used" or "percentage") -->
+Prometheus exporter for Netapp ONTAP API. It fetches data from Netapp's filer and exports them as prometheus metrics. There are manily two groups of metrics that have been implemented.
 
-The value of Metric label may be any one of *total*, *available*, *used*, *percentage*.
+__Volume Metrics__ with labels `availability_zone`, `filer`, `project_id`, `share_id`, `volume` and `vserver`.
+* netapp_volume_total_bytes
+* netapp_volume_used_bytes
+* netapp_volume_available_bytes
+* netapp_volume_snapshot_used_bytes
+* netapp_volume_snapshot_reserved_bytes
+* netapp_volume_snapshot_available_bytes
+* netapp_volume_used_percentage
+* netapp_volume_saved_total_percentage
+* netapp_volume_saved_compression_percentage
+* netapp_volume_saved_deduplication_percentage
 
+__Aggregate Metrics__ with labels `availability_zone`, `filer`, `node` and `aggregate`.
+* netapp_aggregate_total_bytes
+* netapp_aggregate_used_bytes
+* netapp_aggregate_available_bytes
+* netapp_aggregate_used_percentage
+* netapp_aggregate_physical_used_bytes
+* netapp_aggregate_physical_percentage
 
-## Use
+In addition, filer status metrics (labes `availability_zone`, `filer`).
+* netapp_filer_scrape_failure
 
-### Build
-```
-go build
-```
-
-### Run
-Provide list of netapp filers in configuration file "netapp_filers.yaml" and run
-```
-./netapp-api-exporter [-c netapp_filer_config_file] [-w wait_time] [-l listen_address]
-```
+## Usage
 
 ### Flags
 ```
+Flags:
       --help              Show context-sensitive help (also try --help-long and --help-man).
-  -w, --wait=300          Wait time
   -c, --config="./netapp_filers.yaml"  
                           Config file
   -l, --listen="0.0.0.0"  Listen address
   -d, --debug             Debug mode
 ```
 
-### Configuration example
-By default, the configuration file is "netapp_filers.yaml". It should contain blocks of following format,
+### Configuration 
+Configuration file is in yaml format (default path "./netapp_filers.yaml"). It should contain blocks in following format,
 ```
 - name: xxxx
   host: netapp-bb98.labx.company
