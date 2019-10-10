@@ -10,10 +10,6 @@ import (
 type Filer struct {
 	FilerBase
 	NetappClient *netapp.Client
-	volChan      chan *NetappVolume
-	aggrChan     chan *Aggregate
-	getVolDone   chan struct{}
-	getAggrDone  chan struct{}
 }
 
 type FilerBase struct {
@@ -24,26 +20,11 @@ type FilerBase struct {
 	AvailabilityZone string `yaml:"availability_zone"`
 }
 
-func NewFiler(name, host, username, password, az string) *Filer {
-	f := &Filer{
-		FilerBase: FilerBase{
-			Name:             name,
-			Host:             host,
-			Username:         username,
-			Password:         password,
-			AvailabilityZone: az,
-		},
-		volChan:     make(chan *NetappVolume),
-		aggrChan:    make(chan *Aggregate),
-		getVolDone:  make(chan struct{}),
-		getAggrDone: make(chan struct{}),
+func NewFiler(f FilerBase) Filer {
+	return Filer{
+		FilerBase:    f,
+		NetappClient: newNetappClient(f.Host, f.Username, f.Password),
 	}
-	f.Init()
-	return f
-}
-
-func (f *Filer) Init() {
-	f.NetappClient = newNetappClient(f.Host, f.Username, f.Password)
 }
 
 func newNetappClient(host, username, password string) *netapp.Client {
