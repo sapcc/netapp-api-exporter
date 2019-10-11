@@ -1,5 +1,5 @@
 # Netapp API Exporter
-Prometheus exporter for Netapp ONTAP API. It fetches data from Netapp's filer and exports them as prometheus metrics. There are manily two groups of metrics that have been implemented.
+Prometheus exporter for Netapp ONTAP API. It fetches data from Netapp's filer and exports them as prometheus metrics. There are mainly two groups of metrics that have been implemented.
 
 __Volume Metrics__ with labels `availability_zone`, `filer`, `project_id`, `share_id`, `volume` and `vserver`.
 * netapp_volume_total_bytes

@@ -60,7 +60,7 @@ func main() {
 	reg := prometheus.NewPedanticRegistry()
 
 	for _, f := range filers {
-		logger.Println("Register filer:", f.FilerBase)
+		logger.Println("Register filer: Name:", f.FilerBase.Name, "Host:", f.FilerBase.Host, "Username:", f.FilerBase.Username, "AvailabilityZone:", f.FilerBase.AvailabilityZone)
 		cc := NewFilerCollector(f)
 		labels := prometheus.Labels{
 			"filer":             f.Name,
