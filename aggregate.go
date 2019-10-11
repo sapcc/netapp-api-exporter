@@ -23,8 +23,8 @@ type NetappAggregate struct {
 }
 
 type AggrManager struct {
+	sync.Mutex
 	Aggregates    []*NetappAggregate
-	mtx           sync.Mutex
 	lastFetchTime time.Time
 	maxAge        time.Duration
 }

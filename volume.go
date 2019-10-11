@@ -32,8 +32,8 @@ type NetappVolume struct {
 }
 
 type VolumeManager struct {
+	sync.Mutex
 	Volumes       []*NetappVolume
-	mtx           sync.Mutex
 	lastFetchTime time.Time
 	maxAge        time.Duration
 }

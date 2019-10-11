@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+	"sync"
 	"time"
 )
 
@@ -36,90 +37,98 @@ func (c FilerCollector) Describe(ch chan<- *prometheus.Desc) {
 func (c FilerCollector) Collect(ch chan<- prometheus.Metric) {
 	logger.Debug("calling Collect()")
 	ch <- c.scrapesFailure
-	c.CollectAggr(ch)
-	c.CollectVolume(ch)
+
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+	go c.CollectVolume(ch, wg)
+	go c.CollectAggr(ch, wg)
+	wg.Wait()
 }
 
-func (c FilerCollector) CollectAggr(ch chan<- prometheus.Metric) {
+func (c FilerCollector) CollectAggr(ch chan<- prometheus.Metric, wg *sync.WaitGroup) {
 	var (
-		aggrs       []*NetappAggregate
-		err         error
-		doneFetch   = make(chan bool)
-		doneCollect = make(chan bool)
+		fail = make(chan bool)
+		done = make(chan bool)
 	)
 
+	defer wg.Done()
+
+	// Fetch data concurrently.
 	go func() {
-		defer close(doneFetch)
-		aggrs, err = c.aggrManager.Fetch(c.Filer)
+		aggrs, err := c.aggrManager.Fetch(c.Filer)
 		if err != nil {
 			logger.Error(err)
 			c.scrapesFailure.Inc()
+			close(fail)
 		} else {
-			c.aggrManager.mtx.Lock()
+			c.aggrManager.Lock()
 			c.aggrManager.lastFetchTime = time.Now()
 			c.aggrManager.Aggregates = aggrs
-			c.aggrManager.mtx.Unlock()
+			c.aggrManager.Unlock()
+			close(done)
 		}
 	}()
 
-	go func() {
-		c.aggrManager.mtx.Lock()
-		defer c.aggrManager.mtx.Unlock()
-		if time.Since(c.aggrManager.lastFetchTime) < c.aggrManager.maxAge {
-			c.aggrManager.Collect(ch)
-			close(doneCollect)
-		}
-	}()
-
-	select {
-	case <-doneFetch:
-		if err == nil {
-			c.aggrManager.mtx.Lock()
-			c.aggrManager.Collect(ch)
-			c.aggrManager.mtx.Unlock()
-		}
-	case <-doneCollect:
+	// Cached data are recent enough. Collect and return.
+	c.aggrManager.Lock()
+	if time.Since(c.aggrManager.lastFetchTime) < c.aggrManager.maxAge {
+		c.aggrManager.Collect(ch)
+		c.aggrManager.Unlock()
+		return
 	}
+
+	// Cached data are not recent. Wait for fetch.
+	c.aggrManager.Unlock()
+	select {
+	case <-done:
+		c.aggrManager.Lock()
+		c.aggrManager.Collect(ch)
+		c.aggrManager.Unlock()
+	case <-fail:
+	}
+	return
 }
 
-func (c FilerCollector) CollectVolume(ch chan<- prometheus.Metric) {
+func (c FilerCollector) CollectVolume(ch chan<- prometheus.Metric, wg *sync.WaitGroup) {
 	var (
-		vols        []*NetappVolume
-		err         error
-		doneFetch   = make(chan bool)
-		doneCollect = make(chan bool)
+		fail = make(chan bool)
+		done = make(chan bool)
 	)
 
+	defer wg.Done()
+
+	// Fetch data concurrently.
 	go func() {
-		defer close(doneFetch)
-		vols, err = c.volManager.Fetch(c.Filer)
+		vols, err := c.volManager.Fetch(c.Filer)
 		if err != nil {
 			logger.Error(err)
 			c.scrapesFailure.Inc()
+			close(fail)
 		} else {
-			c.volManager.mtx.Lock()
+			c.volManager.Lock()
 			c.volManager.lastFetchTime = time.Now()
 			c.volManager.Volumes = vols
-			c.volManager.mtx.Unlock()
+			c.volManager.Unlock()
+			close(done)
 		}
 	}()
 
-	go func() {
-		c.volManager.mtx.Lock()
-		defer c.volManager.mtx.Unlock()
-		if time.Since(c.volManager.lastFetchTime) < c.volManager.maxAge {
-			c.volManager.Collect(ch)
-			close(doneCollect)
-		}
-	}()
-
-	select {
-	case <-doneFetch:
-		if err == nil {
-			c.volManager.mtx.Lock()
-			c.volManager.Collect(ch)
-			c.volManager.mtx.Unlock()
-		}
-	case <-doneCollect:
+	// Cached data are recent enough. Collect and return.
+	c.volManager.Lock()
+	if time.Since(c.volManager.lastFetchTime) < c.volManager.maxAge {
+		c.volManager.Collect(ch)
+		c.volManager.Unlock()
+		return
 	}
+
+	// Cached data are not recent. Wait for fetch.
+	c.volManager.Unlock()
+	select {
+	case <-done:
+		c.volManager.Lock()
+		c.volManager.Collect(ch)
+		c.volManager.Unlock()
+	case <-fail:
+	}
+	return
 }
