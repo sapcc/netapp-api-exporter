@@ -6,15 +6,15 @@ import (
 	"time"
 )
 
-type FilerCollector struct {
+type Collector struct {
 	Filer
 	aggrManager    *AggrManager
 	volManager     *VolumeManager
 	scrapesFailure prometheus.Counter
 }
 
-func NewFilerCollector(filer Filer) *FilerCollector {
-	return &FilerCollector{
+func NewCollector(filer Filer) *Collector {
+	return &Collector{
 		Filer:       filer,
 		aggrManager: &AggrManager{maxAge: 5 * time.Minute},
 		volManager:  &VolumeManager{maxAge: 5 * time.Minute},
@@ -27,14 +27,14 @@ func NewFilerCollector(filer Filer) *FilerCollector {
 	}
 }
 
-func (c FilerCollector) Describe(ch chan<- *prometheus.Desc) {
+func (c Collector) Describe(ch chan<- *prometheus.Desc) {
 	logger.Debug("calling Describe()")
 	ch <- c.scrapesFailure.Desc()
 	c.volManager.Describe(ch)
 	c.aggrManager.Describe(ch)
 }
 
-func (c FilerCollector) Collect(ch chan<- prometheus.Metric) {
+func (c Collector) Collect(ch chan<- prometheus.Metric) {
 	logger.Debug("calling Collect()")
 	ch <- c.scrapesFailure
 
@@ -45,7 +45,7 @@ func (c FilerCollector) Collect(ch chan<- prometheus.Metric) {
 	wg.Wait()
 }
 
-func (c FilerCollector) CollectAggr(ch chan<- prometheus.Metric, wg *sync.WaitGroup) {
+func (c Collector) CollectAggr(ch chan<- prometheus.Metric, wg *sync.WaitGroup) {
 	var (
 		fail = make(chan bool)
 		done = make(chan bool)
@@ -89,7 +89,7 @@ func (c FilerCollector) CollectAggr(ch chan<- prometheus.Metric, wg *sync.WaitGr
 	return
 }
 
-func (c FilerCollector) CollectVolume(ch chan<- prometheus.Metric, wg *sync.WaitGroup) {
+func (c Collector) CollectVolume(ch chan<- prometheus.Metric, wg *sync.WaitGroup) {
 	var (
 		fail = make(chan bool)
 		done = make(chan bool)
