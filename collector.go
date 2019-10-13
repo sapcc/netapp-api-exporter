@@ -24,18 +24,16 @@ type NetappCollector struct {
 func NewNetappCollector(f *Filer) NetappCollector {
 	return NetappCollector{
 		aggrManager: &AggrManager{
-			Mutex:         sync.Mutex{},
-			filer:         f,
-			Aggregates:    make([]*NetappAggregate, 0),
-			lastFetchTime: time.Time{},
-			maxAge:        5 * time.Minute,
+			Manager: Manager{
+				filer:  f,
+				maxAge: 5 * time.Minute,
+			},
 		},
 		volManager: &VolumeManager{
-			Mutex:         sync.Mutex{},
-			filer:         f,
-			Volumes:       make([]*NetappVolume, 0),
-			lastFetchTime: time.Time{},
-			maxAge:        5 * time.Minute,
+			Manager: Manager{
+				filer:  f,
+				maxAge: 5 * time.Minute,
+			},
 		},
 		scrapesFailure: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: "netapp",

@@ -89,18 +89,8 @@ var (
 
 type AggrManager struct {
 	sync.Mutex
-	filer         *Filer
-	Aggregates    []*NetappAggregate
-	lastFetchTime time.Time
-	maxAge        time.Duration
-}
-
-func (a *AggrManager) MaxAge() time.Duration {
-	return a.maxAge
-}
-
-func (a *AggrManager) LastFetchTime() time.Time {
-	return a.lastFetchTime
+	Manager
+	Aggregates []*NetappAggregate
 }
 
 func (a *AggrManager) SaveDataWithTime(data []interface{}, time time.Time) {

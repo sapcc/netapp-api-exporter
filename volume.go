@@ -132,18 +132,8 @@ var (
 
 type VolumeManager struct {
 	sync.Mutex
-	filer         *Filer
-	Volumes       []*NetappVolume
-	lastFetchTime time.Time
-	maxAge        time.Duration
-}
-
-func (v *VolumeManager) MaxAge() time.Duration {
-	return v.maxAge
-}
-
-func (v *VolumeManager) LastFetchTime() time.Time {
-	return v.lastFetchTime
+	Manager
+	Volumes []*NetappVolume
 }
 
 func (v *VolumeManager) SaveDataWithTime(data []interface{}, time time.Time) {
