@@ -16,20 +16,20 @@ type ManagerCollector interface {
 }
 
 type NetappCollector struct {
-	aggrManager    *AggrManager
-	volManager     *VolumeManager
+	AggrManager    *AggrManager
+	VolumeManager  *VolumeManager
 	scrapesFailure prometheus.Counter
 }
 
 func NewNetappCollector(f *Filer) NetappCollector {
 	return NetappCollector{
-		aggrManager: &AggrManager{
+		AggrManager: &AggrManager{
 			Manager: Manager{
 				filer:  f,
 				maxAge: 5 * time.Minute,
 			},
 		},
-		volManager: &VolumeManager{
+		VolumeManager: &VolumeManager{
 			Manager: Manager{
 				filer:  f,
 				maxAge: 5 * time.Minute,
@@ -47,8 +47,8 @@ func NewNetappCollector(f *Filer) NetappCollector {
 func (n NetappCollector) Describe(ch chan<- *prometheus.Desc) {
 	logger.Debug("calling Describe()")
 	ch <- n.scrapesFailure.Desc()
-	n.volManager.Describe(ch)
-	n.aggrManager.Describe(ch)
+	n.VolumeManager.Describe(ch)
+	n.AggrManager.Describe(ch)
 }
 
 func (n NetappCollector) Collect(ch chan<- prometheus.Metric) {
@@ -57,8 +57,8 @@ func (n NetappCollector) Collect(ch chan<- prometheus.Metric) {
 
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
-	go n.collectManager(n.volManager, ch, wg)
-	go n.collectManager(n.aggrManager, ch, wg)
+	go n.collectManager(n.VolumeManager, ch, wg)
+	go n.collectManager(n.AggrManager, ch, wg)
 	wg.Wait()
 }
 
