@@ -134,19 +134,6 @@ type VolumeManager struct {
 	Volumes []*NetappVolume
 }
 
-func (v *VolumeManager) SaveDataWithTime(data []interface{}, time time.Time) {
-	vols := make([]*NetappVolume, 0)
-	for _, d := range data {
-		if v, ok := d.(*NetappVolume); ok {
-			vols = append(vols, v)
-		} else {
-			panic("wrong data type of parameter for VolumeManger.SaveDataWithTime().")
-		}
-	}
-	v.Volumes = vols
-	v.lastFetchTime = time
-}
-
 func (v *VolumeManager) Describe(ch chan<- *prometheus.Desc) {
 	for _, v := range volMetrics {
 		ch <- v.desc
@@ -160,6 +147,19 @@ func (v *VolumeManager) Collect(ch chan<- prometheus.Metric) {
 			ch <- prometheus.MustNewConstMetric(m.desc, m.valType, m.evalFn(v), labels...)
 		}
 	}
+}
+
+func (v *VolumeManager) SaveDataWithTime(data []interface{}, time time.Time) {
+	vols := make([]*NetappVolume, 0)
+	for _, d := range data {
+		if v, ok := d.(*NetappVolume); ok {
+			vols = append(vols, v)
+		} else {
+			panic("wrong data type of parameter for VolumeManger.SaveDataWithTime().")
+		}
+	}
+	v.Volumes = vols
+	v.lastFetchTime = time
 }
 
 func (v *VolumeManager) Fetch() (volumes []interface{}, err error) {

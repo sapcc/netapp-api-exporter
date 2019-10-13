@@ -91,21 +91,6 @@ type AggrManager struct {
 	Aggregates []*NetappAggregate
 }
 
-func (a *AggrManager) SaveDataWithTime(data []interface{}, time time.Time) {
-	aggrs := make([]*NetappAggregate, 0)
-	for _, d := range data {
-		if aggr, ok := d.(*NetappAggregate); ok {
-			aggrs = append(aggrs, aggr)
-		} else {
-			panic("wrong data type of parameter for AggrManager.SaveDataWithTime().")
-		}
-	}
-	a.Lock()
-	a.Aggregates = aggrs
-	a.lastFetchTime = time
-	a.Unlock()
-}
-
 func (a *AggrManager) Describe(ch chan<- *prometheus.Desc) {
 	for _, v := range aggMetrics {
 		ch <- v.desc
@@ -119,6 +104,21 @@ func (a *AggrManager) Collect(ch chan<- prometheus.Metric) {
 			ch <- prometheus.MustNewConstMetric(m.desc, m.valType, m.evalFn(v), labels...)
 		}
 	}
+}
+
+func (a *AggrManager) SaveDataWithTime(data []interface{}, time time.Time) {
+	aggrs := make([]*NetappAggregate, 0)
+	for _, d := range data {
+		if aggr, ok := d.(*NetappAggregate); ok {
+			aggrs = append(aggrs, aggr)
+		} else {
+			panic("wrong data type of parameter for AggrManager.SaveDataWithTime().")
+		}
+	}
+	a.Lock()
+	a.Aggregates = aggrs
+	a.lastFetchTime = time
+	a.Unlock()
 }
 
 func (a *AggrManager) Fetch() (aggregates []interface{}, err error) {
