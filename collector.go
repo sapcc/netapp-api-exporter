@@ -65,10 +65,13 @@ func (fc NetappCollector) Collect(ch chan<- prometheus.Metric) {
 func (fc NetappCollector) collectManager(m ManagerCollector, ch chan<- prometheus.Metric, wg *sync.WaitGroup) {
 	defer wg.Done()
 
+	// fetch() makes expensive http request to netapp's ONTAP system. The success channel is closed when
+	// request is returned successfully, otherwise fail channel is closed.
 	success := make(chan bool)
 	fail := make(chan bool)
-	fc.fetch(m, success, fail)
+	go fc.fetch(m, success, fail)
 
+	// Since fetch() is called in go routine, metrics can be exported right away, when data is recent enough.
 	m.Lock()
 	if time.Since(m.LastFetchTime()) < m.MaxAge() {
 		m.Collect(ch)
@@ -76,6 +79,7 @@ func (fc NetappCollector) collectManager(m ManagerCollector, ch chan<- prometheu
 		return
 	}
 
+	// Data is not recent, and we have to wait for fetch() to finish.
 	m.Unlock()
 	select {
 	case <-success:
