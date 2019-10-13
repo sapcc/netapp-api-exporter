@@ -6,18 +6,37 @@ import (
 	"time"
 )
 
-type Collector struct {
-	Filer
+type Manager interface {
+	sync.Locker
+	prometheus.Collector
+	Fetch() (data []interface{}, err error)
+	SaveDataWithTime(data []interface{}, t time.Time)
+	LastFetchTime() time.Time
+	MaxAge() time.Duration
+}
+
+type ManagerCollector struct {
 	aggrManager    *AggrManager
 	volManager     *VolumeManager
 	scrapesFailure prometheus.Counter
 }
 
-func NewCollector(filer Filer) *Collector {
-	return &Collector{
-		Filer:       filer,
-		aggrManager: &AggrManager{maxAge: 5 * time.Minute},
-		volManager:  &VolumeManager{maxAge: 5 * time.Minute},
+func NewMangerCollector(f *Filer) ManagerCollector {
+	return ManagerCollector{
+		aggrManager: &AggrManager{
+			Mutex:         sync.Mutex{},
+			filer:         f,
+			Aggregates:    make([]*NetappAggregate, 0),
+			lastFetchTime: time.Time{},
+			maxAge:        5 * time.Minute,
+		},
+		volManager: &VolumeManager{
+			Mutex:         sync.Mutex{},
+			filer:         f,
+			Volumes:       make([]*NetappVolume, 0),
+			lastFetchTime: time.Time{},
+			maxAge:        5 * time.Minute,
+		},
 		scrapesFailure: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: "netapp",
 			Subsystem: "filer",
@@ -27,108 +46,57 @@ func NewCollector(filer Filer) *Collector {
 	}
 }
 
-func (c Collector) Describe(ch chan<- *prometheus.Desc) {
+func (fc ManagerCollector) Describe(ch chan<- *prometheus.Desc) {
 	logger.Debug("calling Describe()")
-	ch <- c.scrapesFailure.Desc()
-	c.volManager.Describe(ch)
-	c.aggrManager.Describe(ch)
+	ch <- fc.scrapesFailure.Desc()
+	fc.volManager.Describe(ch)
+	fc.aggrManager.Describe(ch)
 }
 
-func (c Collector) Collect(ch chan<- prometheus.Metric) {
+func (fc ManagerCollector) Collect(ch chan<- prometheus.Metric) {
 	logger.Debug("calling Collect()")
-	ch <- c.scrapesFailure
+	ch <- fc.scrapesFailure
 
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
-	go c.CollectVolume(ch, wg)
-	go c.CollectAggr(ch, wg)
+	go fc.collectManager(fc.volManager, ch, wg)
+	go fc.collectManager(fc.aggrManager, ch, wg)
 	wg.Wait()
 }
 
-func (c Collector) CollectAggr(ch chan<- prometheus.Metric, wg *sync.WaitGroup) {
-	var (
-		fail = make(chan bool)
-		done = make(chan bool)
-	)
-
+func (fc ManagerCollector) collectManager(m Manager, ch chan<- prometheus.Metric, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	// Fetch data concurrently.
-	go func() {
-		aggrs, err := c.aggrManager.Fetch(c.Filer)
-		if err != nil {
-			logger.Error(err)
-			c.scrapesFailure.Inc()
-			close(fail)
-		} else {
-			c.aggrManager.Lock()
-			c.aggrManager.lastFetchTime = time.Now()
-			c.aggrManager.Aggregates = aggrs
-			c.aggrManager.Unlock()
-			close(done)
-		}
-	}()
+	success := make(chan bool)
+	fail := make(chan bool)
+	fc.fetch(m, success, fail)
 
-	// Cached data are recent enough. Collect and return.
-	c.aggrManager.Lock()
-	if time.Since(c.aggrManager.lastFetchTime) < c.aggrManager.maxAge {
-		c.aggrManager.Collect(ch)
-		c.aggrManager.Unlock()
+	m.Lock()
+	if time.Since(m.LastFetchTime()) < m.MaxAge() {
+		m.Collect(ch)
+		m.Unlock()
 		return
 	}
 
-	// Cached data are not recent. Wait for fetch.
-	c.aggrManager.Unlock()
+	m.Unlock()
 	select {
-	case <-done:
-		c.aggrManager.Lock()
-		c.aggrManager.Collect(ch)
-		c.aggrManager.Unlock()
+	case <-success:
+		m.Lock()
+		m.Collect(ch)
+		m.Unlock()
 	case <-fail:
 	}
 	return
 }
 
-func (c Collector) CollectVolume(ch chan<- prometheus.Metric, wg *sync.WaitGroup) {
-	var (
-		fail = make(chan bool)
-		done = make(chan bool)
-	)
-
-	defer wg.Done()
-
-	// Fetch data concurrently.
-	go func() {
-		vols, err := c.volManager.Fetch(c.Filer)
-		if err != nil {
-			logger.Error(err)
-			c.scrapesFailure.Inc()
-			close(fail)
-		} else {
-			c.volManager.Lock()
-			c.volManager.lastFetchTime = time.Now()
-			c.volManager.Volumes = vols
-			c.volManager.Unlock()
-			close(done)
-		}
-	}()
-
-	// Cached data are recent enough. Collect and return.
-	c.volManager.Lock()
-	if time.Since(c.volManager.lastFetchTime) < c.volManager.maxAge {
-		c.volManager.Collect(ch)
-		c.volManager.Unlock()
-		return
+func (fc ManagerCollector) fetch(m Manager, success, fail chan<- bool) {
+	data, err := m.Fetch()
+	if err != nil {
+		logger.Error(err)
+		fc.scrapesFailure.Inc()
+		close(fail)
+	} else {
+		m.SaveDataWithTime(data, time.Now())
+		close(success)
 	}
-
-	// Cached data are not recent. Wait for fetch.
-	c.volManager.Unlock()
-	select {
-	case <-done:
-		c.volManager.Lock()
-		c.volManager.Collect(ch)
-		c.volManager.Unlock()
-	case <-fail:
-	}
-	return
 }

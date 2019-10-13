@@ -31,13 +31,6 @@ type NetappVolume struct {
 	PercentageTotalSpaceSaved         float64
 }
 
-type VolumeManager struct {
-	sync.Mutex
-	Volumes       []*NetappVolume
-	lastFetchTime time.Time
-	maxAge        time.Duration
-}
-
 type volumeMetrics []struct {
 	desc    *prometheus.Desc
 	valType prometheus.ValueType
@@ -137,13 +130,42 @@ var (
 	}
 )
 
-func (v VolumeManager) Describe(ch chan<- *prometheus.Desc) {
+type VolumeManager struct {
+	sync.Mutex
+	filer         *Filer
+	Volumes       []*NetappVolume
+	lastFetchTime time.Time
+	maxAge        time.Duration
+}
+
+func (v *VolumeManager) MaxAge() time.Duration {
+	return v.maxAge
+}
+
+func (v *VolumeManager) LastFetchTime() time.Time {
+	return v.lastFetchTime
+}
+
+func (v *VolumeManager) SaveDataWithTime(data []interface{}, time time.Time) {
+	vols := make([]*NetappVolume, 0)
+	for _, d := range data {
+		if v, ok := d.(*NetappVolume); ok {
+			vols = append(vols, v)
+		} else {
+			panic("wrong data type of parameter for VolumeManger.SaveDataWithTime().")
+		}
+	}
+	v.Volumes = vols
+	v.lastFetchTime = time
+}
+
+func (v *VolumeManager) Describe(ch chan<- *prometheus.Desc) {
 	for _, v := range volMetrics {
 		ch <- v.desc
 	}
 }
 
-func (v VolumeManager) Collect(ch chan<- prometheus.Metric) {
+func (v *VolumeManager) Collect(ch chan<- prometheus.Metric) {
 	for _, v := range v.Volumes {
 		labels := []string{v.Vserver, v.Volume, v.ProjectID, v.ShareID}
 		for _, m := range volMetrics {
@@ -152,7 +174,7 @@ func (v VolumeManager) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-func (v VolumeManager) Fetch(f Filer) (volumes []*NetappVolume, err error) {
+func (v *VolumeManager) Fetch() (volumes []interface{}, err error) {
 	volumeOptions := netapp.VolumeOptions{
 		MaxRecords: 20,
 		DesiredAttributes: &netapp.VolumeQuery{
@@ -182,12 +204,13 @@ func (v VolumeManager) Fetch(f Filer) (volumes []*NetappVolume, err error) {
 		},
 	}
 
-	vols, err := v.fetch(f, &volumeOptions)
+	vols, err := v.fetch(&volumeOptions)
 
 	if err == nil {
-		logger.Printf("%s: %d volumes fetched", f.Host, len(vols))
+		logger.Printf("%s: %d volumes fetched", v.filer.Host, len(vols))
+		volumes = make([]interface{}, 0)
 		for _, vol := range vols {
-			nv := &NetappVolume{FilerName: f.Name}
+			nv := &NetappVolume{FilerName: v.filer.Name}
 			if vol.VolumeIDAttributes != nil {
 				nv.Vserver = vol.VolumeIDAttributes.OwningVserverName
 				nv.Volume = vol.VolumeIDAttributes.Name
@@ -250,7 +273,7 @@ func (v VolumeManager) Fetch(f Filer) (volumes []*NetappVolume, err error) {
 	return
 }
 
-func (v VolumeManager) fetch(f Filer, opts *netapp.VolumeOptions) (res []netapp.VolumeInfo, err error) {
+func (v *VolumeManager) fetch(opts *netapp.VolumeOptions) (res []netapp.VolumeInfo, err error) {
 	pageHandler := func(r netapp.VolumeListPagesResponse) bool {
 		if r.Error != nil {
 			err = r.Error
@@ -259,7 +282,7 @@ func (v VolumeManager) fetch(f Filer, opts *netapp.VolumeOptions) (res []netapp.
 		res = append(res, r.Response.Results.AttributesList...)
 		return true
 	}
-	f.NetappClient.Volume.ListPages(opts, pageHandler)
+	v.filer.NetappClient.Volume.ListPages(opts, pageHandler)
 	return
 }
 
