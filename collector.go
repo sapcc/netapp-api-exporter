@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-type Manager interface {
+type ManagerCollector interface {
 	sync.Locker
 	prometheus.Collector
 	Fetch() (data []interface{}, err error)
@@ -15,14 +15,14 @@ type Manager interface {
 	MaxAge() time.Duration
 }
 
-type ManagerCollector struct {
+type NetappCollector struct {
 	aggrManager    *AggrManager
 	volManager     *VolumeManager
 	scrapesFailure prometheus.Counter
 }
 
-func NewMangerCollector(f *Filer) ManagerCollector {
-	return ManagerCollector{
+func NewNetappCollector(f *Filer) NetappCollector {
+	return NetappCollector{
 		aggrManager: &AggrManager{
 			Mutex:         sync.Mutex{},
 			filer:         f,
@@ -46,14 +46,14 @@ func NewMangerCollector(f *Filer) ManagerCollector {
 	}
 }
 
-func (fc ManagerCollector) Describe(ch chan<- *prometheus.Desc) {
+func (fc NetappCollector) Describe(ch chan<- *prometheus.Desc) {
 	logger.Debug("calling Describe()")
 	ch <- fc.scrapesFailure.Desc()
 	fc.volManager.Describe(ch)
 	fc.aggrManager.Describe(ch)
 }
 
-func (fc ManagerCollector) Collect(ch chan<- prometheus.Metric) {
+func (fc NetappCollector) Collect(ch chan<- prometheus.Metric) {
 	logger.Debug("calling Collect()")
 	ch <- fc.scrapesFailure
 
@@ -64,7 +64,7 @@ func (fc ManagerCollector) Collect(ch chan<- prometheus.Metric) {
 	wg.Wait()
 }
 
-func (fc ManagerCollector) collectManager(m Manager, ch chan<- prometheus.Metric, wg *sync.WaitGroup) {
+func (fc NetappCollector) collectManager(m ManagerCollector, ch chan<- prometheus.Metric, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	success := make(chan bool)
@@ -89,7 +89,7 @@ func (fc ManagerCollector) collectManager(m Manager, ch chan<- prometheus.Metric
 	return
 }
 
-func (fc ManagerCollector) fetch(m Manager, success, fail chan<- bool) {
+func (fc NetappCollector) fetch(m ManagerCollector, success, fail chan<- bool) {
 	data, err := m.Fetch()
 	if err != nil {
 		logger.Error(err)

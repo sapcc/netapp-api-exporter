@@ -62,7 +62,7 @@ func main() {
 	for _, f := range filers {
 		logger.Printf("Register filer: Name=%s Host=%s Username=%s AvailabilityZone=%s",
 			f.Name, f.Host, f.Username, f.AvailabilityZone)
-		cc := NewFilerCollector(f)
+		cc := NewNetappCollector(f)
 		labels := prometheus.Labels{
 			"filer":             f.Name,
 			"availability_zone": f.AvailabilityZone,
