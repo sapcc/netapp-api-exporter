@@ -1,8 +1,12 @@
 package main
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 type Manager struct {
+	sync.Mutex
 	filer         *Filer
 	lastFetchTime time.Time
 	maxAge        time.Duration

@@ -4,7 +4,6 @@ import (
 	"github.com/pepabo/go-netapp/netapp"
 	"github.com/prometheus/client_golang/prometheus"
 	"strconv"
-	"sync"
 	"time"
 )
 
@@ -88,7 +87,6 @@ var (
 )
 
 type AggrManager struct {
-	sync.Mutex
 	Manager
 	Aggregates []*NetappAggregate
 }

@@ -6,7 +6,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"regexp"
 	"strconv"
-	"sync"
 	"time"
 )
 
@@ -131,7 +130,6 @@ var (
 )
 
 type VolumeManager struct {
-	sync.Mutex
 	Manager
 	Volumes []*NetappVolume
 }
