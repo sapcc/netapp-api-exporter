@@ -44,32 +44,32 @@ func NewNetappCollector(f *Filer) NetappCollector {
 	}
 }
 
-func (fc NetappCollector) Describe(ch chan<- *prometheus.Desc) {
+func (n NetappCollector) Describe(ch chan<- *prometheus.Desc) {
 	logger.Debug("calling Describe()")
-	ch <- fc.scrapesFailure.Desc()
-	fc.volManager.Describe(ch)
-	fc.aggrManager.Describe(ch)
+	ch <- n.scrapesFailure.Desc()
+	n.volManager.Describe(ch)
+	n.aggrManager.Describe(ch)
 }
 
-func (fc NetappCollector) Collect(ch chan<- prometheus.Metric) {
+func (n NetappCollector) Collect(ch chan<- prometheus.Metric) {
 	logger.Debug("calling Collect()")
-	ch <- fc.scrapesFailure
+	ch <- n.scrapesFailure
 
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
-	go fc.collectManager(fc.volManager, ch, wg)
-	go fc.collectManager(fc.aggrManager, ch, wg)
+	go n.collectManager(n.volManager, ch, wg)
+	go n.collectManager(n.aggrManager, ch, wg)
 	wg.Wait()
 }
 
-func (fc NetappCollector) collectManager(m ManagerCollector, ch chan<- prometheus.Metric, wg *sync.WaitGroup) {
+func (n NetappCollector) collectManager(m ManagerCollector, ch chan<- prometheus.Metric, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	// fetch() makes expensive http request to netapp's ONTAP system. The success channel is closed when
 	// request is returned successfully, otherwise fail channel is closed.
 	success := make(chan bool)
 	fail := make(chan bool)
-	go fc.fetch(m, success, fail)
+	go n.fetch(m, success, fail)
 
 	// Since fetch() is called in go routine, metrics can be exported right away, when data is recent enough.
 	m.Lock()
@@ -91,11 +91,11 @@ func (fc NetappCollector) collectManager(m ManagerCollector, ch chan<- prometheu
 	return
 }
 
-func (fc NetappCollector) fetch(m ManagerCollector, success, fail chan<- bool) {
+func (n NetappCollector) fetch(m ManagerCollector, success, fail chan<- bool) {
 	data, err := m.Fetch()
 	if err != nil {
 		logger.Error(err)
-		fc.scrapesFailure.Inc()
+		n.scrapesFailure.Inc()
 		close(fail)
 	} else {
 		m.SaveDataWithTime(data, time.Now())
