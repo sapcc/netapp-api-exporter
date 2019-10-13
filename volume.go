@@ -204,7 +204,7 @@ func (v *VolumeManager) Fetch() (volumes []interface{}, err error) {
 		},
 	}
 
-	vols, err := v.fetch(&volumeOptions)
+	vols, err := v.filer.queryVolumes(&volumeOptions)
 
 	if err == nil {
 		logger.Printf("%s: %d volumes fetched", v.filer.Host, len(vols))
@@ -270,19 +270,6 @@ func (v *VolumeManager) Fetch() (volumes []interface{}, err error) {
 		}
 	}
 
-	return
-}
-
-func (v *VolumeManager) fetch(opts *netapp.VolumeOptions) (res []netapp.VolumeInfo, err error) {
-	pageHandler := func(r netapp.VolumeListPagesResponse) bool {
-		if r.Error != nil {
-			err = r.Error
-			return false
-		}
-		res = append(res, r.Response.Results.AttributesList...)
-		return true
-	}
-	v.filer.NetappClient.Volume.ListPages(opts, pageHandler)
 	return
 }
 

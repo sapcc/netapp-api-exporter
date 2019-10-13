@@ -148,7 +148,7 @@ func (a *AggrManager) Fetch() (aggregates []interface{}, err error) {
 		},
 	}
 
-	aggrs, err := a.fetch(opts)
+	aggrs, err := a.filer.queryAggregates(opts)
 
 	if err == nil {
 		logger.Printf("%s: %d aggregates fetched", a.filer.Host, len(aggrs))
@@ -170,18 +170,5 @@ func (a *AggrManager) Fetch() (aggregates []interface{}, err error) {
 			})
 		}
 	}
-	return
-}
-
-func (a *AggrManager) fetch(opts *netapp.AggrOptions) (res []netapp.AggrInfo, err error) {
-	pageHandler := func(r netapp.AggrListPagesResponse) bool {
-		if r.Error != nil {
-			err = r.Error
-			return false
-		}
-		res = append(res, r.Response.Results.AggrAttributes...)
-		return true
-	}
-	a.filer.NetappClient.Aggregate.ListPages(opts, pageHandler)
 	return
 }
