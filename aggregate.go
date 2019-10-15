@@ -84,7 +84,7 @@ var (
 			evalFn:  func(m *NetappAggregate) float64 { return m.PhysicalUsed },
 		}, {
 			desc: prometheus.NewDesc(
-				"netapp_aggregate_physical_percentage",
+				"netapp_aggregate_physical_used_percentage",
 				"Netapp Aggregate Metrics: physical used percentage",
 				aggregateLabels,
 				nil),
