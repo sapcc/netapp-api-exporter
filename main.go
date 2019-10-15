@@ -60,7 +60,8 @@ func main() {
 	reg := prometheus.NewPedanticRegistry()
 
 	for _, f := range filers {
-		logger.Println("Register filer: Name:", f.FilerBase.Name, "Host:", f.FilerBase.Host, "Username:", f.FilerBase.Username, "AvailabilityZone:", f.FilerBase.AvailabilityZone)
+		logger.Printf("Register filer: Name=%s Host=%s Username=%s AvailabilityZone=%s",
+			f.Name, f.Host, f.Username, f.AvailabilityZone)
 		cc := NewFilerCollector(f)
 		labels := prometheus.Labels{
 			"filer":             f.Name,
@@ -76,6 +77,15 @@ func main() {
 
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 	logger.Fatal(http.ListenAndServe(*listenAddress+":9108", nil))
+}
+
+func loadFilers() (filers []Filer) {
+	if os.Getenv("DEV") != "" {
+		filers = loadFilerFromEnv()
+	} else {
+		filers = loadFilerFromFile(*configFile)
+	}
+	return
 }
 
 func loadFilerFromFile(fileName string) (c []Filer) {
@@ -95,15 +105,6 @@ func loadFilerFromFile(fileName string) (c []Filer) {
 			f.Password = password
 		}
 		c = append(c, NewFiler(f))
-	}
-	return
-}
-
-func loadFilers() (filers []Filer) {
-	if os.Getenv("DEV") != "" {
-		filers = loadFilerFromEnv()
-	} else {
-		filers = loadFilerFromFile(*configFile)
 	}
 	return
 }
