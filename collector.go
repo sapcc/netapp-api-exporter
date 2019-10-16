@@ -53,13 +53,14 @@ func (n NetappCollector) Describe(ch chan<- *prometheus.Desc) {
 
 func (n NetappCollector) Collect(ch chan<- prometheus.Metric) {
 	logger.Debug("calling Collect()")
-	ch <- n.scrapesFailure
 
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
 	go n.collectManager(n.VolumeManager, ch, wg)
 	go n.collectManager(n.AggrManager, ch, wg)
 	wg.Wait()
+
+	ch <- n.scrapesFailure
 }
 
 func (n NetappCollector) collectManager(m ManagerCollector, ch chan<- prometheus.Metric, wg *sync.WaitGroup) {
