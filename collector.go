@@ -21,17 +21,17 @@ type NetappCollector struct {
 	scrapesFailure prometheus.Counter
 }
 
-func NewNetappCollector(f *Filer) NetappCollector {
+func NewNetappCollector(filer Filer) NetappCollector {
 	return NetappCollector{
 		AggrManager: &AggrManager{
 			Manager: Manager{
-				filer:  f,
+				filer:  filer,
 				maxAge: 5 * time.Minute,
 			},
 		},
 		VolumeManager: &VolumeManager{
 			Manager: Manager{
-				filer:  f,
+				filer:  filer,
 				maxAge: 5 * time.Minute,
 			},
 		},

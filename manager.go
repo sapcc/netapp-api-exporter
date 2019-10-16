@@ -7,7 +7,7 @@ import (
 
 type Manager struct {
 	sync.Mutex
-	filer         *Filer
+	filer         Filer
 	lastFetchTime time.Time
 	maxAge        time.Duration
 }
