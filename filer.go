@@ -42,3 +42,29 @@ func newNetappClient(host, username, password string) *netapp.Client {
 
 	return netapp.NewClient(url, version, opts)
 }
+
+func (f *Filer) queryAggregates(opts *netapp.AggrOptions) (res []netapp.AggrInfo, err error) {
+	pageHandler := func(r netapp.AggrListPagesResponse) bool {
+		if r.Error != nil {
+			err = r.Error
+			return false
+		}
+		res = append(res, r.Response.Results.AggrAttributes...)
+		return true
+	}
+	f.NetappClient.Aggregate.ListPages(opts, pageHandler)
+	return
+}
+
+func (f *Filer) queryVolumes(opts *netapp.VolumeOptions) (res []netapp.VolumeInfo, err error) {
+	pageHandler := func(r netapp.VolumeListPagesResponse) bool {
+		if r.Error != nil {
+			err = r.Error
+			return false
+		}
+		res = append(res, r.Response.Results.AttributesList...)
+		return true
+	}
+	f.NetappClient.Volume.ListPages(opts, pageHandler)
+	return
+}

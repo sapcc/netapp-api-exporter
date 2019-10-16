@@ -4,7 +4,6 @@ import (
 	"github.com/pepabo/go-netapp/netapp"
 	"github.com/prometheus/client_golang/prometheus"
 	"strconv"
-	"sync"
 	"time"
 )
 
@@ -20,13 +19,6 @@ type NetappAggregate struct {
 	PercentUsedCapacity float64
 	PhysicalUsed        float64
 	PhysicalUsedPercent float64
-}
-
-type AggrManager struct {
-	sync.Mutex
-	Aggregates    []*NetappAggregate
-	lastFetchTime time.Time
-	maxAge        time.Duration
 }
 
 type aggregateMetrics []struct {
@@ -94,13 +86,18 @@ var (
 	}
 )
 
-func (a AggrManager) Describe(ch chan<- *prometheus.Desc) {
+type AggrManager struct {
+	Manager
+	Aggregates []*NetappAggregate
+}
+
+func (a *AggrManager) Describe(ch chan<- *prometheus.Desc) {
 	for _, v := range aggMetrics {
 		ch <- v.desc
 	}
 }
 
-func (a AggrManager) Collect(ch chan<- prometheus.Metric) {
+func (a *AggrManager) Collect(ch chan<- prometheus.Metric) {
 	for _, v := range a.Aggregates {
 		labels := []string{v.OwnerName, v.Name}
 		for _, m := range aggMetrics {
@@ -109,7 +106,22 @@ func (a AggrManager) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-func (a AggrManager) Fetch(f Filer) (aggregates []*NetappAggregate, err error) {
+func (a *AggrManager) SaveDataWithTime(data []interface{}, time time.Time) {
+	aggrs := make([]*NetappAggregate, 0)
+	for _, d := range data {
+		if aggr, ok := d.(*NetappAggregate); ok {
+			aggrs = append(aggrs, aggr)
+		} else {
+			panic("wrong data type of parameter for AggrManager.SaveDataWithTime().")
+		}
+	}
+	a.Lock()
+	a.Aggregates = aggrs
+	a.lastFetchTime = time
+	a.Unlock()
+}
+
+func (a *AggrManager) Fetch() (aggregates []interface{}, err error) {
 	ff := new(bool)
 	*ff = false
 	opts := &netapp.AggrOptions{
@@ -124,15 +136,16 @@ func (a AggrManager) Fetch(f Filer) (aggregates []*NetappAggregate, err error) {
 		},
 	}
 
-	aggrs, err := a.fetch(f, opts)
+	aggrs, err := a.filer.queryAggregates(opts)
 
 	if err == nil {
-		logger.Printf("%s: %d aggregates fetched", f.Host, len(aggrs))
+		logger.Printf("%s: %d aggregates fetched", a.filer.Host, len(aggrs))
+		aggregates = make([]interface{}, 0)
 		for _, n := range aggrs {
 			percentUsedCapacity, _ := strconv.ParseFloat(n.AggrSpaceAttributes.PercentUsedCapacity, 64)
 			aggregates = append(aggregates, &NetappAggregate{
-				AvailabilityZone:    f.AvailabilityZone,
-				FilerName:           f.Name,
+				AvailabilityZone:    a.filer.AvailabilityZone,
+				FilerName:           a.filer.Name,
 				Name:                n.AggregateName,
 				OwnerName:           n.AggrOwnershipAttributes.OwnerName,
 				SizeUsed:            float64(n.AggrSpaceAttributes.SizeUsed),
@@ -145,18 +158,5 @@ func (a AggrManager) Fetch(f Filer) (aggregates []*NetappAggregate, err error) {
 			})
 		}
 	}
-	return
-}
-
-func (a AggrManager) fetch(f Filer, opts *netapp.AggrOptions) (res []netapp.AggrInfo, err error) {
-	pageHandler := func(r netapp.AggrListPagesResponse) bool {
-		if r.Error != nil {
-			err = r.Error
-			return false
-		}
-		res = append(res, r.Response.Results.AggrAttributes...)
-		return true
-	}
-	f.NetappClient.Aggregate.ListPages(opts, pageHandler)
 	return
 }
