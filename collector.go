@@ -16,9 +16,10 @@ type ManagerCollector interface {
 }
 
 type NetappCollector struct {
-	AggrManager    *AggrManager
-	VolumeManager  *VolumeManager
-	scrapesFailure prometheus.Counter
+	AggrManager   *AggrManager
+	VolumeManager *VolumeManager
+	scrapeFailure prometheus.Counter
+	scrapeCounter prometheus.Counter
 }
 
 func NewNetappCollector(filer Filer) NetappCollector {
@@ -35,18 +36,25 @@ func NewNetappCollector(filer Filer) NetappCollector {
 				maxAge: 5 * time.Minute,
 			},
 		},
-		scrapesFailure: prometheus.NewCounter(prometheus.CounterOpts{
+		scrapeFailure: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: "netapp",
 			Subsystem: "filer",
 			Name:      "scrape_failure",
 			Help:      "The number of scraping failures of filer.",
+		}),
+		scrapeCounter: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: "netapp",
+			Subsystem: "filer",
+			Name:      "scrape_counter",
+			Help:      "The number of scrapes.",
 		}),
 	}
 }
 
 func (n NetappCollector) Describe(ch chan<- *prometheus.Desc) {
 	logger.Debug("calling Describe()")
-	ch <- n.scrapesFailure.Desc()
+	ch <- n.scrapeFailure.Desc()
+	ch <- n.scrapeCounter.Desc()
 	n.VolumeManager.Describe(ch)
 	n.AggrManager.Describe(ch)
 }
@@ -60,7 +68,8 @@ func (n NetappCollector) Collect(ch chan<- prometheus.Metric) {
 	go n.collectManager(n.AggrManager, ch, wg)
 	wg.Wait()
 
-	ch <- n.scrapesFailure
+	ch <- n.scrapeFailure
+	ch <- n.scrapeCounter
 }
 
 func (n NetappCollector) collectManager(m ManagerCollector, ch chan<- prometheus.Metric, wg *sync.WaitGroup) {
@@ -96,10 +105,11 @@ func (n NetappCollector) fetch(m ManagerCollector, success, fail chan<- bool) {
 	data, err := m.Fetch()
 	if err != nil {
 		logger.Error(err)
-		n.scrapesFailure.Inc()
+		n.scrapeFailure.Inc()
 		close(fail)
 	} else {
 		m.SaveDataWithTime(data, time.Now())
 		close(success)
 	}
+	n.scrapeCounter.Inc()
 }
