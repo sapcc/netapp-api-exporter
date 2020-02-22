@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"io/ioutil"
 	"net/http"
 	"os"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"time"
 
@@ -22,7 +23,7 @@ var (
 	debug         = kingpin.Flag("debug", "Debug mode").Short('d').Bool()
 	logger        = logrus.New()
 
-	filers []Filer
+	filers []NetappFilerClient
 )
 
 type myFormatter struct{}
@@ -62,7 +63,7 @@ func main() {
 	for _, f := range filers {
 		logger.Printf("Register filer: Name=%s Host=%s Username=%s AvailabilityZone=%s",
 			f.Name, f.Host, f.Username, f.AvailabilityZone)
-		cc := NewNetappCollector(f)
+		cc := NewNetappCollector(&f)
 		labels := prometheus.Labels{
 			"filer":             f.Name,
 			"availability_zone": f.AvailabilityZone,
@@ -79,7 +80,7 @@ func main() {
 	logger.Fatal(http.ListenAndServe(*listenAddress+":9108", nil))
 }
 
-func loadFilers() (filers []Filer) {
+func loadFilers() (filers []NetappFilerClient) {
 	if os.Getenv("DEV") != "" {
 		filers = loadFilerFromEnv()
 	} else {
@@ -88,8 +89,8 @@ func loadFilers() (filers []Filer) {
 	return
 }
 
-func loadFilerFromFile(fileName string) (c []Filer) {
-	var filers []FilerBase
+func loadFilerFromFile(fileName string) (c []NetappFilerClient) {
+	var filers []NetappFiler
 	if yamlFile, err := ioutil.ReadFile(fileName); err != nil {
 		logger.Fatal("read file ", fileName, err)
 	} else {
@@ -104,18 +105,18 @@ func loadFilerFromFile(fileName string) (c []Filer) {
 			f.Username = username
 			f.Password = password
 		}
-		c = append(c, NewFiler(f))
+		c = append(c, NewNetappClient(f))
 	}
 	return
 }
 
-func loadFilerFromEnv() (c []Filer) {
+func loadFilerFromEnv() (c []NetappFilerClient) {
 	name := os.Getenv("NETAPP_NAME")
 	host := os.Getenv("NETAPP_HOST")
 	username := os.Getenv("NETAPP_USERNAME")
 	password := os.Getenv("NETAPP_PASSWORD")
 	az := os.Getenv("NETAPP_AZ")
-	f := NewFiler(FilerBase{name, host, username, password, az})
+	f := NewNetappClient(NetappFiler{name, host, username, password, az})
 	c = append(c, f)
 	return
 }

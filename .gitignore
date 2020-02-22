@@ -14,5 +14,6 @@ tmp/
 netapp-api-exporter*
 netapp_filers.yaml
 response.xml
+refactor.md
 *crl
 *crt

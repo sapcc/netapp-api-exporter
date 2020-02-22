@@ -7,12 +7,12 @@ import (
 	"github.com/pepabo/go-netapp/netapp"
 )
 
-type Filer struct {
-	FilerBase
+type NetappFilerClient struct {
+	NetappFiler
 	NetappClient *netapp.Client
 }
 
-type FilerBase struct {
+type NetappFiler struct {
 	Name             string `yaml:"name"`
 	Host             string `yaml:"host"`
 	Username         string `yaml:"username"`
@@ -20,9 +20,9 @@ type FilerBase struct {
 	AvailabilityZone string `yaml:"availability_zone"`
 }
 
-func NewFiler(f FilerBase) Filer {
-	return Filer{
-		FilerBase:    f,
+func NewNetappClient(f NetappFiler) NetappFilerClient {
+	return NetappFilerClient{
+		NetappFiler:  f,
 		NetappClient: newNetappClient(f.Host, f.Username, f.Password),
 	}
 }
@@ -43,7 +43,7 @@ func newNetappClient(host, username, password string) *netapp.Client {
 	return netapp.NewClient(url, version, opts)
 }
 
-func (f *Filer) queryAggregates(opts *netapp.AggrOptions) (res []netapp.AggrInfo, err error) {
+func (f *NetappFilerClient) QueryAggregates(opts *netapp.AggrOptions) (res []netapp.AggrInfo, err error) {
 	pageHandler := func(r netapp.AggrListPagesResponse) bool {
 		if r.Error != nil {
 			err = r.Error
@@ -56,7 +56,7 @@ func (f *Filer) queryAggregates(opts *netapp.AggrOptions) (res []netapp.AggrInfo
 	return
 }
 
-func (f *Filer) queryVolumes(opts *netapp.VolumeOptions) (res []netapp.VolumeInfo, err error) {
+func (f *NetappFilerClient) QueryVolumes(opts *netapp.VolumeOptions) (res []netapp.VolumeInfo, err error) {
 	pageHandler := func(r netapp.VolumeListPagesResponse) bool {
 		if r.Error != nil {
 			err = r.Error

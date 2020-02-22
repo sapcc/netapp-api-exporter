@@ -1,38 +1,30 @@
 package main
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
 	"sync"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
-type ManagerCollector interface {
-	sync.Locker
-	prometheus.Collector
-	Fetch() (data []interface{}, err error)
-	SaveDataWithTime(data []interface{}, t time.Time)
-	LastFetchTime() time.Time
-	MaxAge() time.Duration
-}
-
 type NetappCollector struct {
-	AggrManager   *AggrManager
-	VolumeManager *VolumeManager
-	scrapeFailure prometheus.Counter
-	scrapeCounter prometheus.Counter
+	AggrCollector   *AggrCollector
+	VolumeCollector *VolumeCollector
+	scrapeFailure   prometheus.Counter
+	scrapeCounter   prometheus.Counter
 }
 
-func NewNetappCollector(filer Filer) NetappCollector {
+func NewNetappCollector(filer *NetappFilerClient) NetappCollector {
 	return NetappCollector{
-		AggrManager: &AggrManager{
-			Manager: Manager{
-				filer:  filer,
+		AggrCollector: &AggrCollector{
+			Filer: filer,
+			ApiCollectorBase: ApiCollectorBase{
 				maxAge: 5 * time.Minute,
 			},
 		},
-		VolumeManager: &VolumeManager{
-			Manager: Manager{
-				filer:  filer,
+		VolumeCollector: &VolumeCollector{
+			Filer: filer,
+			ApiCollectorBase: ApiCollectorBase{
 				maxAge: 5 * time.Minute,
 			},
 		},
@@ -55,8 +47,8 @@ func (n NetappCollector) Describe(ch chan<- *prometheus.Desc) {
 	logger.Debug("calling Describe()")
 	ch <- n.scrapeFailure.Desc()
 	ch <- n.scrapeCounter.Desc()
-	n.VolumeManager.Describe(ch)
-	n.AggrManager.Describe(ch)
+	n.VolumeCollector.Describe(ch)
+	n.AggrCollector.Describe(ch)
 }
 
 func (n NetappCollector) Collect(ch chan<- prometheus.Metric) {
@@ -64,15 +56,15 @@ func (n NetappCollector) Collect(ch chan<- prometheus.Metric) {
 
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
-	go n.collectManager(n.VolumeManager, ch, wg)
-	go n.collectManager(n.AggrManager, ch, wg)
+	go n.fetchAndCollect(n.VolumeCollector, ch, wg)
+	go n.fetchAndCollect(n.AggrCollector, ch, wg)
 	wg.Wait()
 
 	ch <- n.scrapeFailure
 	ch <- n.scrapeCounter
 }
 
-func (n NetappCollector) collectManager(m ManagerCollector, ch chan<- prometheus.Metric, wg *sync.WaitGroup) {
+func (n NetappCollector) fetchAndCollect(m ApiCollector, ch chan<- prometheus.Metric, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	// fetch() makes expensive http request to netapp's ONTAP system. The success channel is closed when
@@ -83,7 +75,7 @@ func (n NetappCollector) collectManager(m ManagerCollector, ch chan<- prometheus
 
 	// Since fetch() is called in go routine, metrics can be exported right away, when data is recent enough.
 	m.Lock()
-	if time.Since(m.LastFetchTime()) < m.MaxAge() {
+	if m.IsDataFresh() {
 		m.Collect(ch)
 		m.Unlock()
 		return
@@ -101,14 +93,22 @@ func (n NetappCollector) collectManager(m ManagerCollector, ch chan<- prometheus
 	return
 }
 
-func (n NetappCollector) fetch(m ManagerCollector, success, fail chan<- bool) {
+func (n NetappCollector) fetch(m ApiCollector, success, fail chan<- bool) {
 	data, err := m.Fetch()
 	if err != nil {
 		logger.Error(err)
 		n.scrapeFailure.Inc()
 		close(fail)
 	} else {
-		m.SaveDataWithTime(data, time.Now())
+		m.Lock()
+		err = m.SaveData(data)
+		if err != nil {
+			m.Unlock()
+			logger.Error(err)
+			close(fail)
+		}
+		m.SetFetchTime(time.Now())
+		m.Unlock()
 		close(success)
 	}
 	n.scrapeCounter.Inc()

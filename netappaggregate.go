@@ -1,10 +1,11 @@
 package main
 
 import (
+	"fmt"
+	"strconv"
+
 	"github.com/pepabo/go-netapp/netapp"
 	"github.com/prometheus/client_golang/prometheus"
-	"strconv"
-	"time"
 )
 
 type NetappAggregate struct {
@@ -86,18 +87,19 @@ var (
 	}
 )
 
-type AggrManager struct {
-	Manager
+type AggrCollector struct {
+	ApiCollectorBase
+	Filer      *NetappFilerClient
 	Aggregates []*NetappAggregate
 }
 
-func (a *AggrManager) Describe(ch chan<- *prometheus.Desc) {
+func (a *AggrCollector) Describe(ch chan<- *prometheus.Desc) {
 	for _, v := range aggMetrics {
 		ch <- v.desc
 	}
 }
 
-func (a *AggrManager) Collect(ch chan<- prometheus.Metric) {
+func (a *AggrCollector) Collect(ch chan<- prometheus.Metric) {
 	for _, v := range a.Aggregates {
 		labels := []string{v.OwnerName, v.Name}
 		for _, m := range aggMetrics {
@@ -106,22 +108,20 @@ func (a *AggrManager) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-func (a *AggrManager) SaveDataWithTime(data []interface{}, time time.Time) {
+func (a *AggrCollector) SaveData(data []interface{}) error {
 	aggrs := make([]*NetappAggregate, 0)
 	for _, d := range data {
 		if aggr, ok := d.(*NetappAggregate); ok {
 			aggrs = append(aggrs, aggr)
 		} else {
-			panic("wrong data type of parameter for AggrManager.SaveDataWithTime().")
+			return fmt.Errorf("type of parameter should be %s", "[]*NetappAggregate")
 		}
 	}
-	a.Lock()
 	a.Aggregates = aggrs
-	a.lastFetchTime = time
-	a.Unlock()
+	return nil
 }
 
-func (a *AggrManager) Fetch() (aggregates []interface{}, err error) {
+func (a *AggrCollector) Fetch() (aggregates []interface{}, err error) {
 	ff := new(bool)
 	*ff = false
 	opts := &netapp.AggrOptions{
@@ -136,16 +136,16 @@ func (a *AggrManager) Fetch() (aggregates []interface{}, err error) {
 		},
 	}
 
-	aggrs, err := a.filer.queryAggregates(opts)
+	aggrs, err := a.Filer.QueryAggregates(opts)
 
 	if err == nil {
-		logger.Printf("%s: %d aggregates fetched", a.filer.Host, len(aggrs))
+		logger.Printf("%s: %d aggregates fetched", a.Filer.Host, len(aggrs))
 		aggregates = make([]interface{}, 0)
 		for _, n := range aggrs {
 			percentUsedCapacity, _ := strconv.ParseFloat(n.AggrSpaceAttributes.PercentUsedCapacity, 64)
 			aggregates = append(aggregates, &NetappAggregate{
-				AvailabilityZone:    a.filer.AvailabilityZone,
-				FilerName:           a.filer.Name,
+				AvailabilityZone:    a.Filer.AvailabilityZone,
+				FilerName:           a.Filer.Name,
 				Name:                n.AggregateName,
 				OwnerName:           n.AggrOwnershipAttributes.OwnerName,
 				SizeUsed:            float64(n.AggrSpaceAttributes.SizeUsed),

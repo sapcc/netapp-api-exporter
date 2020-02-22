@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/pepabo/go-netapp/netapp"
-	"github.com/prometheus/client_golang/prometheus"
 	"regexp"
 	"strconv"
-	"time"
+
+	"github.com/pepabo/go-netapp/netapp"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type NetappVolume struct {
@@ -139,18 +139,19 @@ var (
 	}
 )
 
-type VolumeManager struct {
-	Manager
+type VolumeCollector struct {
+	ApiCollectorBase
+	Filer   *NetappFilerClient
 	Volumes []*NetappVolume
 }
 
-func (v *VolumeManager) Describe(ch chan<- *prometheus.Desc) {
+func (v *VolumeCollector) Describe(ch chan<- *prometheus.Desc) {
 	for _, v := range volMetrics {
 		ch <- v.desc
 	}
 }
 
-func (v *VolumeManager) Collect(ch chan<- prometheus.Metric) {
+func (v *VolumeCollector) Collect(ch chan<- prometheus.Metric) {
 	for _, v := range v.Volumes {
 		labels := []string{v.Vserver, v.Volume, v.ProjectID, v.ShareID}
 		for _, m := range volMetrics {
@@ -159,20 +160,20 @@ func (v *VolumeManager) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-func (v *VolumeManager) SaveDataWithTime(data []interface{}, time time.Time) {
+func (v *VolumeCollector) SaveData(data []interface{}) error {
 	vols := make([]*NetappVolume, 0)
 	for _, d := range data {
 		if v, ok := d.(*NetappVolume); ok {
 			vols = append(vols, v)
 		} else {
-			panic("wrong data type of parameter for VolumeManger.SaveDataWithTime().")
+			return fmt.Errorf("type of parameter should be %s", "[]*NetappVolume")
 		}
 	}
 	v.Volumes = vols
-	v.lastFetchTime = time
+	return nil
 }
 
-func (v *VolumeManager) Fetch() (volumes []interface{}, err error) {
+func (v *VolumeCollector) Fetch() (volumes []interface{}, err error) {
 	volumeOptions := netapp.VolumeOptions{
 		MaxRecords: 20,
 		DesiredAttributes: &netapp.VolumeQuery{
@@ -205,13 +206,13 @@ func (v *VolumeManager) Fetch() (volumes []interface{}, err error) {
 		},
 	}
 
-	vols, err := v.filer.queryVolumes(&volumeOptions)
+	vols, err := v.Filer.QueryVolumes(&volumeOptions)
 
 	if err == nil {
-		logger.Printf("%s: %d volumes fetched", v.filer.Host, len(vols))
+		logger.Printf("%s: %d volumes fetched", v.Filer.Host, len(vols))
 		volumes = make([]interface{}, 0)
 		for _, vol := range vols {
-			nv := &NetappVolume{FilerName: v.filer.Name}
+			nv := &NetappVolume{FilerName: v.Filer.Name}
 			if vol.VolumeIDAttributes != nil {
 				nv.Vserver = vol.VolumeIDAttributes.OwningVserverName
 				nv.Volume = vol.VolumeIDAttributes.Name
