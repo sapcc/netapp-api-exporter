@@ -17,6 +17,7 @@ type NetappVolume struct {
 	Vserver                           string
 	Volume                            string
 	Comment                           string
+	State                             int
 	Size                              int
 	SizeTotal                         float64
 	SizeAvailable                     float64
@@ -45,6 +46,15 @@ var (
 	}
 
 	volMetrics = volumeMetrics{
+		{
+			desc: prometheus.NewDesc(
+				"netapp_volume_state",
+				"Netapp Volume Metrics: state",
+				volumeLabels,
+				nil),
+			valType: prometheus.GaugeValue,
+			evalFn:  func(v *NetappVolume) float64 { return float64(v.State) },
+		},
 		{
 			desc: prometheus.NewDesc(
 				"netapp_volume_total_bytes",
@@ -188,6 +198,9 @@ func (v *VolumeManager) Fetch() (volumes []interface{}, err error) {
 					PercentageDeduplicationSpaceSaved: "x",
 					PercentageTotalSpaceSaved:         "x",
 				},
+				VolumeStateAttributes: &netapp.VolumeStateAttributes{
+					State: "x",
+				},
 			},
 		},
 	}
@@ -253,6 +266,13 @@ func (v *VolumeManager) Fetch() (volumes []interface{}, err error) {
 			} else {
 				//logger.Warnf("%s (%s) does not have comment",
 				//	vol.VolumeIDAttributes.Name, vol.VolumeIDAttributes.OwningVserverName)
+			}
+			if vol.VolumeStateAttributes != nil {
+				if vol.VolumeStateAttributes.State == "online" {
+					nv.State = 1
+				} else if vol.VolumeStateAttributes.State == "offline" {
+					nv.State = -1
+				}
 			}
 			volumes = append(volumes, nv)
 		}

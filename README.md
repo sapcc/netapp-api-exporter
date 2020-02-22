@@ -1,7 +1,9 @@
 # Netapp API Exporter
 Prometheus exporter for Netapp ONTAP API. It fetches data from Netapp's filer and exports them as prometheus metrics. There are mainly two groups of metrics that have been implemented.
 
-__Volume Metrics__ with labels `availability_zone`, `filer`, `project_id`, `share_id`, `volume` and `vserver`.
+__Volume Metrics__ with labels `availability_zone`, `filer`, `project_id`, `share_id`, `volume` and `vserver`. <sup>1</sup>
+
+* netapp_volume_state <sup>2</sup>
 * netapp_volume_total_bytes
 * netapp_volume_used_bytes
 * netapp_volume_available_bytes
@@ -12,6 +14,10 @@ __Volume Metrics__ with labels `availability_zone`, `filer`, `project_id`, `shar
 * netapp_volume_saved_total_percentage
 * netapp_volume_saved_compression_percentage
 * netapp_volume_saved_deduplication_percentage
+
+<sup>1</sup> The label `project_id` is openstack specific, and `share_id` is openstack manila specific.
+
+<sup>2</sup> The metric netapp_volume_state being 1 means "online"; being -1 means "offline".
 
 __Aggregate Metrics__ with labels `availability_zone`, `filer`, `node` and `aggregate`.
 * netapp_aggregate_total_bytes
