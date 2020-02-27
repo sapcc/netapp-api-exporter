@@ -141,7 +141,7 @@ var (
 
 type VolumeCollector struct {
 	ApiCollectorBase
-	Filer   *NetappFilerClient
+	Filer   NetappFilerClient
 	Volumes []*NetappVolume
 }
 

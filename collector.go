@@ -14,7 +14,7 @@ type NetappCollector struct {
 	scrapeCounter   prometheus.Counter
 }
 
-func NewNetappCollector(filer *NetappFilerClient) NetappCollector {
+func NewNetappCollector(filer NetappFilerClient) NetappCollector {
 	return NetappCollector{
 		AggrCollector: &AggrCollector{
 			Filer: filer,

@@ -89,7 +89,7 @@ var (
 
 type AggrCollector struct {
 	ApiCollectorBase
-	Filer      *NetappFilerClient
+	Filer      NetappFilerClient
 	Aggregates []*NetappAggregate
 }
 
