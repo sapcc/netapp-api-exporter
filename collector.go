@@ -19,13 +19,15 @@ func NewNetappCollector(filer NetappFilerClient) NetappCollector {
 		AggrCollector: &AggrCollector{
 			Filer: filer,
 			ApiCollectorBase: ApiCollectorBase{
-				maxAge: 5 * time.Minute,
+				maxAge:      5 * time.Minute,
+				minInterval: 2 * time.Minute,
 			},
 		},
 		VolumeCollector: &VolumeCollector{
 			Filer: filer,
 			ApiCollectorBase: ApiCollectorBase{
-				maxAge: 5 * time.Minute,
+				maxAge:      5 * time.Minute,
+				minInterval: 2 * time.Minute,
 			},
 		},
 		scrapeFailure: prometheus.NewCounter(prometheus.CounterOpts{
@@ -94,6 +96,13 @@ func (n NetappCollector) fetchAndCollect(m ApiCollector, ch chan<- prometheus.Me
 }
 
 func (n NetappCollector) fetch(m ApiCollector, success, fail chan<- bool) {
+	if !m.CheckMinFetchInterval() {
+		logger.Warn("Minimal fetch interval violated")
+		close(fail)
+		// return to skip fetching.
+		return
+	}
+
 	data, err := m.Fetch()
 	if err != nil {
 		logger.Error(err)
@@ -107,6 +116,7 @@ func (n NetappCollector) fetch(m ApiCollector, success, fail chan<- bool) {
 			logger.Error(err)
 			close(fail)
 		}
+		// set time after fetching. The fetch interval does not include the fetching time.
 		m.SetFetchTime(time.Now())
 		m.Unlock()
 		close(success)

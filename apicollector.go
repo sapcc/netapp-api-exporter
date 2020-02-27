@@ -16,12 +16,24 @@ type ApiCollector interface {
 	SaveData(data []interface{}) error
 	SetFetchTime(time.Time)
 	IsDataFresh() bool
+
+	// Check current time against minimal fetch interval. Returns true if time has elapsed longer than
+	// the minimal interval since last fetch.
+	CheckMinFetchInterval() bool
 }
 
 type ApiCollectorBase struct {
 	sync.Mutex
 	lastFetchTime time.Time
 	maxAge        time.Duration
+	minInterval   time.Duration
+}
+
+func (m *ApiCollectorBase) CheckMinFetchInterval() bool {
+	if time.Since(m.lastFetchTime) < m.minInterval {
+		return false
+	}
+	return true
 }
 
 func (m *ApiCollectorBase) IsDataFresh() bool {
