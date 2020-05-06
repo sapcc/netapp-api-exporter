@@ -49,7 +49,7 @@ var (
 		{
 			desc: prometheus.NewDesc(
 				"netapp_volume_state",
-				"Netapp Volume Metrics: state",
+				"Netapp Volume Metrics: state (1: online; 2: restricted; 3: offline; 4: quiesced)",
 				volumeLabels,
 				nil),
 			valType: prometheus.GaugeValue,
@@ -271,8 +271,12 @@ func (v *VolumeCollector) Fetch() (volumes []interface{}, err error) {
 			if vol.VolumeStateAttributes != nil {
 				if vol.VolumeStateAttributes.State == "online" {
 					nv.State = 1
+				} else if vol.VolumeStateAttributes.State == "restricted" {
+					nv.State = 2
 				} else if vol.VolumeStateAttributes.State == "offline" {
-					nv.State = -1
+					nv.State = 3
+				} else if vol.VolumeStateAttributes.State == "quiesced" {
+					nv.State = 4
 				}
 			}
 			volumes = append(volumes, nv)
