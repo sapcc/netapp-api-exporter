@@ -43,6 +43,7 @@ var (
 		"volume",
 		"project_id",
 		"share_id",
+		"share_name",
 	}
 
 	volMetrics = volumeMetrics{
@@ -153,7 +154,7 @@ func (v *VolumeCollector) Describe(ch chan<- *prometheus.Desc) {
 
 func (v *VolumeCollector) Collect(ch chan<- prometheus.Metric) {
 	for _, v := range v.Volumes {
-		labels := []string{v.Vserver, v.Volume, v.ProjectID, v.ShareID}
+		labels := []string{v.Vserver, v.Volume, v.ProjectID, v.ShareID, v.ShareName}
 		for _, m := range volMetrics {
 			ch <- prometheus.MustNewConstMetric(m.desc, m.valType, m.evalFn(v), labels...)
 		}
