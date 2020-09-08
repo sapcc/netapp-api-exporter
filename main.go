@@ -7,8 +7,6 @@ import (
 	"github.com/sapcc/netapp-api-exporter/netapp"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
@@ -21,7 +19,7 @@ var (
 	logger        = logrus.New()
 )
 
-type myFormatter struct{}
+type logFormatter struct{}
 
 func init() {
 	kingpin.Parse()
@@ -31,7 +29,7 @@ func init() {
 	}
 
 	logger.Out = os.Stdout
-	logger.SetFormatter(new(myFormatter))
+	logger.SetFormatter(new(logFormatter))
 	if *debug {
 		logger.Level = logrus.DebugLevel
 	} else {
@@ -41,7 +39,7 @@ func init() {
 
 func main() {
 	// try loading filers every  10 seconds until successful
-	var filers []*netapp.Filer
+	var filers []*Filer
 	var err error
 	for {
 		filers, err = loadFilers()
@@ -56,7 +54,7 @@ func main() {
 	reg := prometheus.NewPedanticRegistry()
 
 	for _, f := range filers {
-		netappClient := netapp.NewClient(f)
+		netappClient := netapp.NewClient(f.Host, f.Username, f.Password, f.Version)
 		extraLabels := prometheus.Labels{
 			"filer":             f.Name,
 			"availability_zone": f.AvailabilityZone,
@@ -75,63 +73,7 @@ func main() {
 	logger.Fatal(http.ListenAndServe(addr, nil))
 }
 
-func loadFilers() ([]*netapp.Filer, error) {
-	if os.Getenv("DEV") != "" {
-		logger.Info("Load filer configuration from env variables")
-		return []*netapp.Filer{loadFilerFromEnv()}, nil
-	} else {
-		logger.Infof("Load filer configuration from %s", *configFile)
-		return loadFilerFromFile(*configFile)
-	}
-}
-
-func loadFilerFromFile(fileName string) (filers []*netapp.Filer, err error) {
-	var yamlFile []byte
-	if yamlFile, err = ioutil.ReadFile(fileName); err != nil {
-		return nil, err
-	}
-	if err = yaml.Unmarshal(yamlFile, &filers); err != nil {
-		return nil, err
-	}
-	for _, f := range filers {
-		if f.Username == "" || f.Password == "" {
-			username, password := loadAuthFromEnv()
-			f.Username = username
-			f.Password = password
-		}
-		// set netapp api version
-		f.Version = "1.7"
-	}
-	return
-}
-
-func loadFilerFromEnv() *netapp.Filer {
-	return &netapp.Filer{
-		Name:             os.Getenv("NETAPP_NAME"),
-		Host:             os.Getenv("NETAPP_HOST"),
-		Username:         os.Getenv("NETAPP_USERNAME"),
-		Password:         os.Getenv("NETAPP_PASSWORD"),
-		AvailabilityZone: os.Getenv("NETAPP_AZ"),
-		Version:          GetEnvWithDefaultValue("Netapp_API_VERSION", "1.7"),
-	}
-}
-
-func loadAuthFromEnv() (username, password string) {
-	username = os.Getenv("NETAPP_USERNAME")
-	password = os.Getenv("NETAPP_PASSWORD")
-	return
-}
-
-func GetEnvWithDefaultValue(key, defaultValue string) string {
-	v, ok := os.LookupEnv(key)
-	if ok {
-		return v
-	} else {
-		return defaultValue
-	}
-}
-
-func (f *myFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+func (f *logFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	s := fmt.Sprintf("%s [%s] %s\t", entry.Time.Format("2006-01-02 15:04:05.000"), entry.Level, entry.Message)
 	for k, v := range entry.Data {
 		s = s + fmt.Sprintf(" %s=%s", k, v)
