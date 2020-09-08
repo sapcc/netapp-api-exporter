@@ -43,7 +43,7 @@ Flags:
 ```
 
 ### Configuration 
-Configuration file is in yaml format (default path "./netapp_filers.yaml"). It should contain blocks in following format,
+Configuration file is in yaml format (default path "./config/netapp_filers.yaml"). It should contain blocks in following format,
 ```
 - name: xxxx
   host: netapp-bb98.labx.company
