@@ -8,11 +8,11 @@ import (
 )
 
 type AggregateCollector struct {
-	client     *netapp.Client
-	metrics    []AggregateMetric
-	aggregates []*netapp.Aggregate
-	mux        sync.Mutex
-	maxAge     time.Duration
+	client          *netapp.Client
+	metrics         []AggregateMetric
+	aggregates      []*netapp.Aggregate
+	mux             sync.Mutex
+	retentionPeriod time.Duration
 }
 
 type AggregateMetric struct {
@@ -21,11 +21,11 @@ type AggregateMetric struct {
 	getterFn  func(aggr *netapp.Aggregate) float64
 }
 
-func NewAggregateCollector(client *netapp.Client, maxAge time.Duration) *AggregateCollector {
+func NewAggregateCollector(client *netapp.Client, retentionPeriod time.Duration) *AggregateCollector {
 	aggrLabels := []string{"node", "aggregate"}
 	return &AggregateCollector{
-		client: client,
-		maxAge: maxAge,
+		client:          client,
+		retentionPeriod: retentionPeriod,
 		metrics: []AggregateMetric{
 			{
 				desc: prometheus.NewDesc(
@@ -110,7 +110,7 @@ func (c *AggregateCollector) Fetch() error {
 		return err
 	}
 	c.aggregates = aggregates
-	time.AfterFunc(c.maxAge, func() {
+	time.AfterFunc(c.retentionPeriod, func() {
 		defer c.mux.Unlock()
 		c.mux.Lock()
 		c.aggregates = nil

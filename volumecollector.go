@@ -8,11 +8,11 @@ import (
 )
 
 type VolumeCollector struct {
-	client  *netapp.Client
-	metrics []VolumeMetric
-	volumes []*netapp.Volume
-	mux     sync.Mutex
-	maxAge  time.Duration
+	client          *netapp.Client
+	metrics         []VolumeMetric
+	volumes         []*netapp.Volume
+	mux             sync.Mutex
+	retentionPeriod time.Duration
 }
 
 type VolumeMetric struct {
@@ -21,11 +21,11 @@ type VolumeMetric struct {
 	getterFn  func(volume *netapp.Volume) float64
 }
 
-func NewVolumeCollector(client *netapp.Client, maxAge time.Duration) *VolumeCollector {
+func NewVolumeCollector(client *netapp.Client, retentionPeriod time.Duration) *VolumeCollector {
 	volumeLabels := []string{"vserver", "volume", "project_id", "share_id", "share_name"}
 	return &VolumeCollector{
-		client: client,
-		maxAge: maxAge,
+		client:          client,
+		retentionPeriod: retentionPeriod,
 		metrics: []VolumeMetric{
 			{
 				desc: prometheus.NewDesc(
@@ -150,7 +150,7 @@ func (c *VolumeCollector) Fetch() error {
 		return err
 	}
 	c.volumes = volumes
-	time.AfterFunc(c.maxAge, func() {
+	time.AfterFunc(c.retentionPeriod, func() {
 		defer c.mux.Unlock()
 		c.mux.Lock()
 		c.volumes = nil
