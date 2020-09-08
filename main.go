@@ -2,28 +2,23 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"os"
-
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	"time"
-
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sapcc/netapp-api-exporter/netapp"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/yaml.v2"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"time"
 )
 
-// Parameter
 var (
-	configFile    = kingpin.Flag("config", "Config file").Short('c').Default("./netapp_filers.yaml").String()
+	configFile    = kingpin.Flag("config", "Config file").Short('c').Default("./config/netapp_filers.yaml").String()
 	listenAddress = kingpin.Flag("listen", "Listen address").Short('l').Default("0.0.0.0").String()
 	debug         = kingpin.Flag("debug", "Debug mode").Short('d').Bool()
 	logger        = logrus.New()
-
-	filers []NetappFilerClient
 )
 
 type myFormatter struct{}
@@ -42,17 +37,17 @@ func init() {
 	} else {
 		logger.Level = logrus.InfoLevel
 	}
-	for _, f := range filers {
-		logger.Printf("Host (%s) loaded", f.Host)
-	}
 }
 
 func main() {
-	// try loading filers every 5 seconds until successful
+	// try loading filers every  10 seconds until successful
+	var filers []*netapp.Filer
+	var err error
 	for {
-		filers = loadFilers()
-		if len(filers) == 0 {
-			time.Sleep(5 * time.Second)
+		filers, err = loadFilers()
+		if err != nil {
+			logger.Errorf("Failed to load filer configuration: %v. Retry in 10 seconds...", err)
+			time.Sleep(10 * time.Second)
 			continue
 		}
 		break
@@ -61,70 +56,79 @@ func main() {
 	reg := prometheus.NewPedanticRegistry()
 
 	for _, f := range filers {
-		logger.Printf("Register filer: Name=%s Host=%s Username=%s AvailabilityZone=%s",
-			f.Name, f.Host, f.Username, f.AvailabilityZone)
-		cc := NewNetappCollector(f)
-		labels := prometheus.Labels{
+		netappClient := netapp.NewClient(f)
+		extraLabels := prometheus.Labels{
 			"filer":             f.Name,
 			"availability_zone": f.AvailabilityZone,
 		}
-		prometheus.WrapRegistererWith(labels, reg).MustRegister(cc)
+		logger.Infof("Register collectors for filer: {Name=%s, Host=%s, Username=%s}", f.Name, f.Host, f.Username)
+		prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(
+			NewAggregateCollector(netappClient, 5*time.Minute),
+			NewVolumeCollector(netappClient, 2*time.Minute),
+			NewSystemCollector(netappClient),
+		)
 	}
 
-	reg.MustRegister(
-		prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}),
-		prometheus.NewGoCollector(),
-	)
-
+	port := "9108"
+	addr := *listenAddress + ":" + port
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
-	logger.Fatal(http.ListenAndServe(*listenAddress+":9108", nil))
+	logger.Fatal(http.ListenAndServe(addr, nil))
 }
 
-func loadFilers() (filers []NetappFilerClient) {
+func loadFilers() ([]*netapp.Filer, error) {
 	if os.Getenv("DEV") != "" {
-		filers = loadFilerFromEnv()
+		logger.Info("Load filer configuration from env variables")
+		return []*netapp.Filer{loadFilerFromEnv()}, nil
 	} else {
-		filers = loadFilerFromFile(*configFile)
+		logger.Infof("Load filer configuration from %s", *configFile)
+		return loadFilerFromFile(*configFile)
 	}
-	return
 }
 
-func loadFilerFromFile(fileName string) (c []NetappFilerClient) {
-	var filers []NetappFiler
-	if yamlFile, err := ioutil.ReadFile(fileName); err != nil {
-		logger.Fatal("read file ", fileName, err)
-	} else {
-		if err := yaml.Unmarshal(yamlFile, &filers); err != nil {
-			logger.Fatal("unmarshal yaml struct", err)
-		}
+func loadFilerFromFile(fileName string) (filers []*netapp.Filer, err error) {
+	var yamlFile []byte
+	if yamlFile, err = ioutil.ReadFile(fileName); err != nil {
+		return nil, err
 	}
-
+	if err = yaml.Unmarshal(yamlFile, &filers); err != nil {
+		return nil, err
+	}
 	for _, f := range filers {
 		if f.Username == "" || f.Password == "" {
 			username, password := loadAuthFromEnv()
 			f.Username = username
 			f.Password = password
 		}
-		c = append(c, NewNetappClient(f))
+		// set netapp api version
+		f.Version = "1.7"
 	}
 	return
 }
 
-func loadFilerFromEnv() (c []NetappFilerClient) {
-	name := os.Getenv("NETAPP_NAME")
-	host := os.Getenv("NETAPP_HOST")
-	username := os.Getenv("NETAPP_USERNAME")
-	password := os.Getenv("NETAPP_PASSWORD")
-	az := os.Getenv("NETAPP_AZ")
-	f := NewNetappClient(NetappFiler{name, host, username, password, az})
-	c = append(c, f)
-	return
+func loadFilerFromEnv() *netapp.Filer {
+	return &netapp.Filer{
+		Name:             os.Getenv("NETAPP_NAME"),
+		Host:             os.Getenv("NETAPP_HOST"),
+		Username:         os.Getenv("NETAPP_USERNAME"),
+		Password:         os.Getenv("NETAPP_PASSWORD"),
+		AvailabilityZone: os.Getenv("NETAPP_AZ"),
+		Version:          GetEnvWithDefaultValue("Netapp_API_VERSION", "1.7"),
+	}
 }
 
 func loadAuthFromEnv() (username, password string) {
 	username = os.Getenv("NETAPP_USERNAME")
 	password = os.Getenv("NETAPP_PASSWORD")
 	return
+}
+
+func GetEnvWithDefaultValue(key, defaultValue string) string {
+	v, ok := os.LookupEnv(key)
+	if ok {
+		return v
+	} else {
+		return defaultValue
+	}
 }
 
 func (f *myFormatter) Format(entry *logrus.Entry) ([]byte, error) {
