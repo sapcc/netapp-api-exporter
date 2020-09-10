@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
+	"net/http"
+	"os"
+	"time"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sapcc/netapp-api-exporter/netapp"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"net/http"
-	"os"
-	"time"
 )
 
 var (
@@ -31,6 +32,7 @@ func init() {
 	logger.Out = os.Stdout
 	logger.SetFormatter(new(logFormatter))
 	if *debug {
+		logger.Info("Debug mode")
 		logger.Level = logrus.DebugLevel
 	} else {
 		logger.Level = logrus.InfoLevel
@@ -61,9 +63,9 @@ func main() {
 		}
 		logger.Infof("Register collectors for filer: {Name=%s, Host=%s, Username=%s}", f.Name, f.Host, f.Username)
 		prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(
-			NewAggregateCollector(netappClient, 5*time.Minute),
-			NewVolumeCollector(netappClient, 2*time.Minute),
-			NewSystemCollector(netappClient),
+			NewAggregateCollector(f.Name, netappClient, 5*time.Minute),
+			NewVolumeCollector(f.Name, netappClient, 2*time.Minute),
+			NewSystemCollector(f.Name, netappClient),
 		)
 	}
 

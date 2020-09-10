@@ -1,13 +1,15 @@
 package main
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sapcc/netapp-api-exporter/netapp"
 	"sync"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sapcc/netapp-api-exporter/netapp"
 )
 
 type AggregateCollector struct {
+	filerName       string
 	client          *netapp.Client
 	metrics         []AggregateMetric
 	aggregates      []*netapp.Aggregate
@@ -21,9 +23,10 @@ type AggregateMetric struct {
 	getterFn  func(aggr *netapp.Aggregate) float64
 }
 
-func NewAggregateCollector(client *netapp.Client, retentionPeriod time.Duration) *AggregateCollector {
+func NewAggregateCollector(filerName string, client *netapp.Client, retentionPeriod time.Duration) *AggregateCollector {
 	aggrLabels := []string{"node", "aggregate"}
 	return &AggregateCollector{
+		filerName:       filerName,
 		client:          client,
 		retentionPeriod: retentionPeriod,
 		metrics: []AggregateMetric{
@@ -43,8 +46,7 @@ func NewAggregateCollector(client *netapp.Client, retentionPeriod time.Duration)
 					nil),
 				valueType: prometheus.GaugeValue,
 				getterFn:  func(m *netapp.Aggregate) float64 { return m.SizeAvailable },
-			},
-			{
+			}, {
 				desc: prometheus.NewDesc(
 					"netapp_aggregate_used_bytes",
 					"Netapp Aggregate Metrics: used size",

@@ -1,19 +1,22 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sapcc/netapp-api-exporter/netapp"
-	"strings"
 )
 
 type SystemCollector struct {
+	filerName   string
 	versionDesc *prometheus.Desc
 	client      *netapp.Client
 }
 
-func NewSystemCollector(client *netapp.Client) *SystemCollector {
+func NewSystemCollector(filerName string, client *netapp.Client) *SystemCollector {
 	return &SystemCollector{
-		client: client,
+		filerName: filerName,
+		client:    client,
 		versionDesc: prometheus.NewDesc(
 			"netapp_system_version",
 			"Info about ontap version in labels `version` and `full_version`",

@@ -1,13 +1,15 @@
 package main
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sapcc/netapp-api-exporter/netapp"
 	"sync"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sapcc/netapp-api-exporter/netapp"
 )
 
 type VolumeCollector struct {
+	filerName       string
 	client          *netapp.Client
 	metrics         []VolumeMetric
 	volumes         []*netapp.Volume
@@ -21,9 +23,10 @@ type VolumeMetric struct {
 	getterFn  func(volume *netapp.Volume) float64
 }
 
-func NewVolumeCollector(client *netapp.Client, retentionPeriod time.Duration) *VolumeCollector {
+func NewVolumeCollector(filerName string, client *netapp.Client, retentionPeriod time.Duration) *VolumeCollector {
 	volumeLabels := []string{"vserver", "volume", "project_id", "share_id", "share_name"}
 	return &VolumeCollector{
+		filerName:       filerName,
 		client:          client,
 		retentionPeriod: retentionPeriod,
 		metrics: []VolumeMetric{
@@ -35,8 +38,7 @@ func NewVolumeCollector(client *netapp.Client, retentionPeriod time.Duration) *V
 					nil),
 				valueType: prometheus.GaugeValue,
 				getterFn:  func(v *netapp.Volume) float64 { return float64(v.State) },
-			},
-			{
+			}, {
 				desc: prometheus.NewDesc(
 					"netapp_volume_total_bytes",
 					"Netapp Volume Metrics: total size",
@@ -130,18 +132,21 @@ func (c *VolumeCollector) Describe(ch chan<- *prometheus.Desc) {
 func (c *VolumeCollector) Collect(ch chan<- prometheus.Metric) {
 	defer c.mux.Unlock()
 	c.mux.Lock()
+	logger.Debugf("VolumeCollector: [%v] Collect() starts", c.filerName)
 	if c.volumes == nil {
 		if err := c.Fetch(); err != nil {
 			logger.Error(err)
 			return
 		}
 	}
+	logger.Debugf("VolumeCollector: [%v] Collect() exporting %d volumes", c.filerName, len(c.volumes))
 	for _, volume := range c.volumes {
 		volumeLabels := []string{volume.Vserver, volume.Volume, volume.ProjectID, volume.ShareID, volume.ShareName}
 		for _, m := range c.metrics {
 			ch <- prometheus.MustNewConstMetric(m.desc, m.valueType, m.getterFn(volume), volumeLabels...)
 		}
 	}
+	return
 }
 
 func (c *VolumeCollector) Fetch() error {
@@ -150,9 +155,11 @@ func (c *VolumeCollector) Fetch() error {
 		return err
 	}
 	c.volumes = volumes
+	logger.Debugf("VolumeCollector: [%v] %d volumes are fetched", c.filerName, len(c.volumes))
 	time.AfterFunc(c.retentionPeriod, func() {
 		defer c.mux.Unlock()
 		c.mux.Lock()
+		logger.Debugf("VolumeCollector: [%v] clean cached data", c.filerName)
 		c.volumes = nil
 	})
 	return nil
