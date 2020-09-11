@@ -2,57 +2,52 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
-
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"gopkg.in/yaml.v2"
 )
 
-// Parameter
 var (
-	configFile    = kingpin.Flag("config", "Config file").Short('c').Default("./netapp_filers.yaml").String()
-	listenAddress = kingpin.Flag("listen", "Listen address").Short('l').Default("0.0.0.0").String()
-	debug         = kingpin.Flag("debug", "Debug mode").Short('d').Bool()
-	logger        = logrus.New()
-
-	filers []NetappFilerClient
+	configFile               = kingpin.Flag("config", "Config file").Short('c').Default("./config/netapp_filers.yaml").String()
+	listenAddress            = kingpin.Flag("listen", "Listen address").Short('l').Default("0.0.0.0").String()
+	debug                    = kingpin.Flag("debug", "Debug mode").Short('d').Bool()
+	aggregateRetentionPeriod = kingpin.Flag("aggregateRetention", "Aggregate collector retention period").Default("5m").Duration()
+	volumeRetentionPeriod    = kingpin.Flag("volumeRetention", "Volume collector retention period").Default("2m").Duration()
+	disableAggregate         = kingpin.Flag("no-aggregate", "Disable aggregate collector").Bool()
+	disableVolume            = kingpin.Flag("no-volume", "Disable volume collector").Bool()
+	disableSystem            = kingpin.Flag("no-system", "Disable system collector").Bool()
+	logger                   = logrus.New()
 )
 
-type myFormatter struct{}
+type logFormatter struct{}
 
 func init() {
 	kingpin.Parse()
 
-	if os.Getenv("DEV") != "" {
-		*debug = true
-	}
-
 	logger.Out = os.Stdout
-	logger.SetFormatter(new(myFormatter))
+	logger.SetFormatter(new(logFormatter))
 	if *debug {
+		logger.Info("Debug mode")
 		logger.Level = logrus.DebugLevel
 	} else {
 		logger.Level = logrus.InfoLevel
 	}
-	for _, f := range filers {
-		logger.Printf("Host (%s) loaded", f.Host)
-	}
 }
 
 func main() {
-	// try loading filers every 5 seconds until successful
+	// try loading filers every  10 seconds until successful
+	var filers []Filer
+	var err error
 	for {
-		filers = loadFilers()
-		if len(filers) == 0 {
-			time.Sleep(5 * time.Second)
+		filers, err = loadFilers()
+		if err != nil {
+			logger.Errorf("Failed to load filer configuration: %v. Retry in 10 seconds...", err)
+			time.Sleep(10 * time.Second)
 			continue
 		}
 		break
@@ -61,73 +56,32 @@ func main() {
 	reg := prometheus.NewPedanticRegistry()
 
 	for _, f := range filers {
-		logger.Printf("Register filer: Name=%s Host=%s Username=%s AvailabilityZone=%s",
-			f.Name, f.Host, f.Username, f.AvailabilityZone)
-		cc := NewNetappCollector(f)
-		labels := prometheus.Labels{
+		extraLabels := prometheus.Labels{
 			"filer":             f.Name,
 			"availability_zone": f.AvailabilityZone,
 		}
-		prometheus.WrapRegistererWith(labels, reg).MustRegister(cc)
+		logger.Infof("Register collectors for filer: {Name=%s, Host=%s, Username=%s}", f.Name, f.Host, f.Username)
+		prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(f.scrapeErrorCounter)
+		if !*disableAggregate {
+			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(
+				NewAggregateCollector(f.Name, f.client, f.scrapeError, *aggregateRetentionPeriod))
+		}
+		if !*disableVolume {
+			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(
+				NewVolumeCollector(f.Name, f.client, f.scrapeError, *volumeRetentionPeriod))
+		}
+		if !*disableSystem {
+			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(NewSystemCollector(f.Name, f.client))
+		}
 	}
 
-	reg.MustRegister(
-		prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}),
-		prometheus.NewGoCollector(),
-	)
-
+	port := "9108"
+	addr := *listenAddress + ":" + port
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
-	logger.Fatal(http.ListenAndServe(*listenAddress+":9108", nil))
+	logger.Fatal(http.ListenAndServe(addr, nil))
 }
 
-func loadFilers() (filers []NetappFilerClient) {
-	if os.Getenv("DEV") != "" {
-		filers = loadFilerFromEnv()
-	} else {
-		filers = loadFilerFromFile(*configFile)
-	}
-	return
-}
-
-func loadFilerFromFile(fileName string) (c []NetappFilerClient) {
-	var filers []NetappFiler
-	if yamlFile, err := ioutil.ReadFile(fileName); err != nil {
-		logger.Fatal("read file ", fileName, err)
-	} else {
-		if err := yaml.Unmarshal(yamlFile, &filers); err != nil {
-			logger.Fatal("unmarshal yaml struct", err)
-		}
-	}
-
-	for _, f := range filers {
-		if f.Username == "" || f.Password == "" {
-			username, password := loadAuthFromEnv()
-			f.Username = username
-			f.Password = password
-		}
-		c = append(c, NewNetappClient(f))
-	}
-	return
-}
-
-func loadFilerFromEnv() (c []NetappFilerClient) {
-	name := os.Getenv("NETAPP_NAME")
-	host := os.Getenv("NETAPP_HOST")
-	username := os.Getenv("NETAPP_USERNAME")
-	password := os.Getenv("NETAPP_PASSWORD")
-	az := os.Getenv("NETAPP_AZ")
-	f := NewNetappClient(NetappFiler{name, host, username, password, az})
-	c = append(c, f)
-	return
-}
-
-func loadAuthFromEnv() (username, password string) {
-	username = os.Getenv("NETAPP_USERNAME")
-	password = os.Getenv("NETAPP_PASSWORD")
-	return
-}
-
-func (f *myFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+func (f *logFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	s := fmt.Sprintf("%s [%s] %s\t", entry.Time.Format("2006-01-02 15:04:05.000"), entry.Level, entry.Message)
 	for k, v := range entry.Data {
 		s = s + fmt.Sprintf(" %s=%s", k, v)

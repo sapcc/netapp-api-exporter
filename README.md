@@ -32,6 +32,9 @@ In addition, filer status metrics (labes `availability_zone`, `filer`).
 
 ## Usage
 
+This collector includes three groups of metrics: volume metrics, aggregate metrics and system info metrics. Each group
+can be disabled with the --no-\* flag.
+
 ### Flags
 ```
 Flags:
@@ -40,10 +43,15 @@ Flags:
                           Config file
   -l, --listen="0.0.0.0"  Listen address
   -d, --debug             Debug mode
+      --no-aggregate           Disable aggregate collector
+      --no-volume              Disable volume collector
+      --no-system              Disable system collector
+      --aggregateRetention=5m  Aggregate collector retention period
+      --volumeRetention=2m     Volume collector retention period
 ```
 
 ### Configuration 
-Configuration file is in yaml format (default path "./netapp_filers.yaml"). It should contain blocks in following format,
+Configuration file is in yaml format (default path "./config/netapp_filers.yaml"). It should contain blocks in following format,
 ```
 - name: xxxx
   host: netapp-bb98.labx.company

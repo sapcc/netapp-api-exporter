@@ -1,9 +1,9 @@
 app=netapp-api-exporter
-IMAGE=hub.global.cloud.sap/monsoon/${app}
+IMAGE=keppel.eu-de-1.cloud.sap/ccloud/${app}
 
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 HASH := $(shell git rev-parse HEAD | head -c 7)
-VERSION :=v$(shell date -u +%Y%m%d%H%M%S)-$(BRANCH)-$(HASH)
+VERSION :=$(BRANCH)-$(HASH)-$(shell date -u +%Y%m%d%H%M%S)
 
 .PHONY: build
 build: bin/${app}_linux_amd64 bin/${app}_darwin_amd64
@@ -17,7 +17,7 @@ bin/${app}_darwin_amd64: *.go
 .PHONY: docker
 docker: bin/${app}_linux_amd64
 	@echo "[INFO] build docker image"
-	docker build -t $(IMAGE):$(VERSION) . 
+	docker build -t $(IMAGE):$(VERSION) .
 	@echo "[INFO] push docker image"
 	docker tag $(IMAGE):$(VERSION) $(IMAGE):latest
 	docker push $(IMAGE):$(VERSION)
@@ -27,10 +27,8 @@ docker: bin/${app}_linux_amd64
 dev: 
 	rm -f bin/${app}_dev
 	go build -o bin/${app}_dev
-	DEV=1 ./bin/${app}_dev -l localhost
+	DEV=1 ./bin/${app}_dev -c config/netapp_filers.yaml -l localhost
 
 .PHONY: clean
 clean:
-	rm -f bin/${app}_linux_amd64
-	rm -f bin/${app}_darwin_amd64
-	rm -f bin/${app}_dev
+	rm -f bin/*
