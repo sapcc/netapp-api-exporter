@@ -2,6 +2,7 @@ package netapp
 
 import (
 	"fmt"
+
 	n "github.com/pepabo/go-netapp/netapp"
 )
 

@@ -1,13 +1,12 @@
 package netapp
 
 import (
-	n "github.com/pepabo/go-netapp/netapp"
 	"strconv"
+
+	n "github.com/pepabo/go-netapp/netapp"
 )
 
 type Aggregate struct {
-	//AvailabilityZone    string
-	//FilerName           string
 	Name                string
 	OwnerName           string
 	SizeUsed            float64

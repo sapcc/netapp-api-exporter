@@ -15,6 +15,7 @@ type AggregateCollector struct {
 	aggregates      []*netapp.Aggregate
 	mux             sync.Mutex
 	retentionPeriod time.Duration
+	errorCh         chan<- error
 }
 
 type AggregateMetric struct {
@@ -23,11 +24,12 @@ type AggregateMetric struct {
 	getterFn  func(aggr *netapp.Aggregate) float64
 }
 
-func NewAggregateCollector(filerName string, client *netapp.Client, retentionPeriod time.Duration) *AggregateCollector {
+func NewAggregateCollector(filerName string, client *netapp.Client, ch chan<- error, retentionPeriod time.Duration) *AggregateCollector {
 	aggrLabels := []string{"node", "aggregate"}
 	return &AggregateCollector{
 		filerName:       filerName,
 		client:          client,
+		errorCh:         ch,
 		retentionPeriod: retentionPeriod,
 		metrics: []AggregateMetric{
 			{
@@ -95,6 +97,7 @@ func (c *AggregateCollector) Collect(ch chan<- prometheus.Metric) {
 	if c.aggregates == nil {
 		if err := c.Fetch(); err != nil {
 			logger.Error(err)
+			c.errorCh <- err
 			return
 		}
 	}

@@ -3,9 +3,10 @@ package netapp
 import (
 	"errors"
 	"fmt"
-	n "github.com/pepabo/go-netapp/netapp"
 	"regexp"
 	"strconv"
+
+	n "github.com/pepabo/go-netapp/netapp"
 )
 
 type Volume struct {

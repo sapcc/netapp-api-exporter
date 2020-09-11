@@ -32,10 +32,11 @@ func (c *SystemCollector) Describe(ch chan<- *prometheus.Desc) {
 
 func (c *SystemCollector) Collect(ch chan<- prometheus.Metric) {
 	fullVersion, err := c.client.GetSystemVersion()
-	version := fullVersion[:strings.Index(fullVersion, ":")]
 	if err != nil {
 		logger.Error(err)
+		return
 	}
+	version := fullVersion[:strings.Index(fullVersion, ":")]
 	ch <- prometheus.MustNewConstMetric(
 		c.versionDesc,
 		prometheus.GaugeValue,

@@ -15,6 +15,7 @@ type VolumeCollector struct {
 	volumes         []*netapp.Volume
 	mux             sync.Mutex
 	retentionPeriod time.Duration
+	errorCh         chan<- error
 }
 
 type VolumeMetric struct {
@@ -23,11 +24,12 @@ type VolumeMetric struct {
 	getterFn  func(volume *netapp.Volume) float64
 }
 
-func NewVolumeCollector(filerName string, client *netapp.Client, retentionPeriod time.Duration) *VolumeCollector {
+func NewVolumeCollector(filerName string, client *netapp.Client, ch chan<- error, retentionPeriod time.Duration) *VolumeCollector {
 	volumeLabels := []string{"vserver", "volume", "project_id", "share_id", "share_name"}
 	return &VolumeCollector{
 		filerName:       filerName,
 		client:          client,
+		errorCh:         ch,
 		retentionPeriod: retentionPeriod,
 		metrics: []VolumeMetric{
 			{
@@ -136,6 +138,7 @@ func (c *VolumeCollector) Collect(ch chan<- prometheus.Metric) {
 	if c.volumes == nil {
 		if err := c.Fetch(); err != nil {
 			logger.Error(err)
+			c.errorCh <- err
 			return
 		}
 	}

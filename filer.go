@@ -1,41 +1,75 @@
 package main
 
 import (
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sapcc/netapp-api-exporter/netapp"
+	"gopkg.in/yaml.v2"
 )
 
 const netappApiVersion = "1.7"
 
-type Filer struct {
+type FilerBase struct {
 	Name             string `yaml:"name"`
 	Host             string `yaml:"host"`
+	AvailabilityZone string `yaml:"availability_zone"`
 	Username         string `yaml:"username"`
 	Password         string `yaml:"password"`
-	AvailabilityZone string `yaml:"availability_zone"`
 	Version          string `yaml:"version"`
 }
 
-func loadFilers() ([]*Filer, error) {
-	if os.Getenv("DEV") != "" {
+type Filer struct {
+	FilerBase
+	client             *netapp.Client
+	scrapeError        chan error
+	scrapeErrorCounter prometheus.Counter
+}
+
+func NewFiler(f FilerBase) Filer {
+	filer := Filer{
+		FilerBase:   f,
+		client:      netapp.NewClient(f.Host, f.Username, f.Password, f.Version),
+		scrapeError: make(chan error),
+		scrapeErrorCounter: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: "netapp",
+			Subsystem: "filer",
+			Name:      "scrape_failure",
+			Help:      "Number of failed scrapes to netapp filer.",
+		}),
+	}
+	go func() {
+		for {
+			select {
+			case <-filer.scrapeError:
+				filer.scrapeErrorCounter.Inc()
+			}
+		}
+	}()
+	return filer
+}
+
+func loadFilers() ([]Filer, error) {
+	if os.Getenv("DEV") == "1" {
 		logger.Info("Load filer configuration from env variables")
-		return []*Filer{loadFilerFromEnv()}, nil
+		return []Filer{loadFilerFromEnv()}, nil
 	} else {
 		logger.Infof("Load filer configuration from %s", *configFile)
 		return loadFilerFromFile(*configFile)
 	}
 }
 
-func loadFilerFromFile(fileName string) (filers []*Filer, err error) {
+func loadFilerFromFile(fileName string) (filers []Filer, err error) {
 	var yamlFile []byte
+	var filerInfos []*FilerBase
 	if yamlFile, err = ioutil.ReadFile(fileName); err != nil {
 		return nil, err
 	}
-	if err = yaml.Unmarshal(yamlFile, &filers); err != nil {
+	if err = yaml.Unmarshal(yamlFile, &filerInfos); err != nil {
 		return nil, err
 	}
-	for _, f := range filers {
+	for _, f := range filerInfos {
 		if f.Username == "" || f.Password == "" {
 			username, password := getAuthFromEnv()
 			f.Username = username
@@ -44,19 +78,19 @@ func loadFilerFromFile(fileName string) (filers []*Filer, err error) {
 		if f.Version == "" {
 			f.Version = netappApiVersion
 		}
+		filers = append(filers, NewFiler(*f))
 	}
 	return
 }
 
-func loadFilerFromEnv() *Filer {
-	return &Filer{
-		Name:             os.Getenv("NETAPP_NAME"),
-		Host:             os.Getenv("NETAPP_HOST"),
-		Username:         os.Getenv("NETAPP_USERNAME"),
-		Password:         os.Getenv("NETAPP_PASSWORD"),
-		AvailabilityZone: os.Getenv("NETAPP_AZ"),
-		Version:          getEnvWithDefaultValue("Netapp_API_VERSION", netappApiVersion),
-	}
+func loadFilerFromEnv() Filer {
+	name := os.Getenv("NETAPP_NAME")
+	host := os.Getenv("NETAPP_HOST")
+	username := os.Getenv("NETAPP_USERNAME")
+	password := os.Getenv("NETAPP_PASSWORD")
+	az := os.Getenv("NETAPP_AZ")
+	version := getEnvWithDefaultValue("Netapp_API_VERSION", netappApiVersion)
+	return NewFiler(FilerBase{name, host, az, username, password, version})
 }
 
 func getAuthFromEnv() (username, password string) {

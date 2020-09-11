@@ -8,7 +8,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/sapcc/netapp-api-exporter/netapp"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -30,10 +29,6 @@ type logFormatter struct{}
 func init() {
 	kingpin.Parse()
 
-	if os.Getenv("DEV") != "" {
-		*debug = true
-	}
-
 	logger.Out = os.Stdout
 	logger.SetFormatter(new(logFormatter))
 	if *debug {
@@ -46,7 +41,7 @@ func init() {
 
 func main() {
 	// try loading filers every  10 seconds until successful
-	var filers []*Filer
+	var filers []Filer
 	var err error
 	for {
 		filers, err = loadFilers()
@@ -61,22 +56,22 @@ func main() {
 	reg := prometheus.NewPedanticRegistry()
 
 	for _, f := range filers {
-		netappClient := netapp.NewClient(f.Host, f.Username, f.Password, f.Version)
 		extraLabels := prometheus.Labels{
 			"filer":             f.Name,
 			"availability_zone": f.AvailabilityZone,
 		}
 		logger.Infof("Register collectors for filer: {Name=%s, Host=%s, Username=%s}", f.Name, f.Host, f.Username)
+		prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(f.scrapeErrorCounter)
 		if !*disableAggregate {
 			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(
-				NewAggregateCollector(f.Name, netappClient, *aggregateRetentionPeriod))
+				NewAggregateCollector(f.Name, f.client, f.scrapeError, *aggregateRetentionPeriod))
 		}
 		if !*disableVolume {
 			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(
-				NewVolumeCollector(f.Name, netappClient, *volumeRetentionPeriod))
+				NewVolumeCollector(f.Name, f.client, f.scrapeError, *volumeRetentionPeriod))
 		}
 		if !*disableSystem {
-			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(NewSystemCollector(f.Name, netappClient))
+			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(NewSystemCollector(f.Name, f.client))
 		}
 	}
 
