@@ -27,8 +27,9 @@ __Aggregate Metrics__ with labels `availability_zone`, `filer`, `node` and `aggr
 * netapp_aggregate_physical_used_bytes
 * netapp_aggregate_physical_percentage
 
-In addition, filer status metrics (labes `availability_zone`, `filer`).
+__Other Metrics__ for the infos about the filer (with labes `availability_zone`, `filer`).
 * netapp_filer_scrape_failure
+* netapp_filer_system_version
 
 ## Usage
 
@@ -58,6 +59,8 @@ Configuration file is in yaml format (default path "./config/netapp_filers.yaml"
   username: <username>
   password: <password>
 ```
+
+The `username` and `password` field can be omitted in the yaml file, and set via the env variables `NETAPP_USERNAME` and `NETAPP_PASSWORD`. 
 
 ## Version
 

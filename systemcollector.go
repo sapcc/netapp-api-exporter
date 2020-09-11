@@ -18,7 +18,7 @@ func NewSystemCollector(filerName string, client *netapp.Client) *SystemCollecto
 		filerName: filerName,
 		client:    client,
 		versionDesc: prometheus.NewDesc(
-			"netapp_system_version",
+			"netapp_filer_system_version",
 			"Info about ontap version in labels `version` and `full_version`",
 			[]string{"full_version", "version"},
 			nil,
