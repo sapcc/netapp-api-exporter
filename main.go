@@ -14,10 +14,15 @@ import (
 )
 
 var (
-	configFile    = kingpin.Flag("config", "Config file").Short('c').Default("./config/netapp_filers.yaml").String()
-	listenAddress = kingpin.Flag("listen", "Listen address").Short('l').Default("0.0.0.0").String()
-	debug         = kingpin.Flag("debug", "Debug mode").Short('d').Bool()
-	logger        = logrus.New()
+	configFile               = kingpin.Flag("config", "Config file").Short('c').Default("./config/netapp_filers.yaml").String()
+	listenAddress            = kingpin.Flag("listen", "Listen address").Short('l').Default("0.0.0.0").String()
+	debug                    = kingpin.Flag("debug", "Debug mode").Short('d').Bool()
+	aggregateRetentionPeriod = kingpin.Flag("aggregateRetention", "Aggregate collector retention period").Default("5m").Duration()
+	volumeRetentionPeriod    = kingpin.Flag("volumeRetention", "Volume collector retention period").Default("2m").Duration()
+	disableAggregate         = kingpin.Flag("no-aggregate", "Disable aggregate collector").Bool()
+	disableVolume            = kingpin.Flag("no-volume", "Disable volume collector").Bool()
+	disableSystem            = kingpin.Flag("no-system", "Disable system collector").Bool()
+	logger                   = logrus.New()
 )
 
 type logFormatter struct{}
@@ -62,11 +67,17 @@ func main() {
 			"availability_zone": f.AvailabilityZone,
 		}
 		logger.Infof("Register collectors for filer: {Name=%s, Host=%s, Username=%s}", f.Name, f.Host, f.Username)
-		prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(
-			NewAggregateCollector(f.Name, netappClient, 5*time.Minute),
-			NewVolumeCollector(f.Name, netappClient, 2*time.Minute),
-			NewSystemCollector(f.Name, netappClient),
-		)
+		if !*disableAggregate {
+			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(
+				NewAggregateCollector(f.Name, netappClient, *aggregateRetentionPeriod))
+		}
+		if !*disableVolume {
+			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(
+				NewVolumeCollector(f.Name, netappClient, *volumeRetentionPeriod))
+		}
+		if !*disableSystem {
+			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(NewSystemCollector(f.Name, netappClient))
+		}
 	}
 
 	port := "9108"

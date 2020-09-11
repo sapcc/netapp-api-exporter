@@ -32,6 +32,9 @@ In addition, filer status metrics (labes `availability_zone`, `filer`).
 
 ## Usage
 
+This collector includes three groups of metrics: volume metrics, aggregate metrics and system info metrics. Each group
+can be disabled with the --no-\* flag.
+
 ### Flags
 ```
 Flags:
@@ -40,6 +43,11 @@ Flags:
                           Config file
   -l, --listen="0.0.0.0"  Listen address
   -d, --debug             Debug mode
+      --no-aggregate           Disable aggregate collector
+      --no-volume              Disable volume collector
+      --no-system              Disable system collector
+      --aggregateRetention=5m  Aggregate collector retention period
+      --volumeRetention=2m     Volume collector retention period
 ```
 
 ### Configuration 
