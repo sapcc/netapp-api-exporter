@@ -59,3 +59,6 @@ Configuration file is in yaml format (default path "./config/netapp_filers.yaml"
   password: <password>
 ```
 
+## Version
+
+Code is currently on v2, and is largely refactored to make extension easier. Old version is available under tag [v1](https://github.com/sapcc/netapp-api-exporter/releases/tag/v1).
