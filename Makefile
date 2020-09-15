@@ -3,7 +3,7 @@ IMAGE=keppel.eu-de-1.cloud.sap/ccloud/${app}
 
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 HASH := $(shell git rev-parse HEAD | head -c 7)
-VERSION :=v$(shell date -u +%Y%m%d%H%M%S)-$(BRANCH)-$(HASH)
+VERSION :=$(BRANCH)-$(HASH)-$(shell date -u +%Y%m%d%H%M%S)
 
 .PHONY: build
 build: bin/${app}_linux_amd64 bin/${app}_darwin_amd64
