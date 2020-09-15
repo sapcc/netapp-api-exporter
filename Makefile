@@ -1,5 +1,5 @@
 app=netapp-api-exporter
-IMAGE=hub.global.cloud.sap/monsoon/${app}
+IMAGE=keppel.eu-de-1.cloud.sap/ccloud/${app}
 
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 HASH := $(shell git rev-parse HEAD | head -c 7)
