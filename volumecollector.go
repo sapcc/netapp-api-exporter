@@ -25,7 +25,7 @@ type VolumeMetric struct {
 }
 
 func NewVolumeCollector(filerName string, client *netapp.Client, ch chan<- error, retentionPeriod time.Duration) *VolumeCollector {
-	volumeLabels := []string{"vserver", "volume", "project_id", "share_id", "share_name"}
+	volumeLabels := []string{"vserver", "volume", "project_id", "share_id", "share_name", "share_type"}
 	return &VolumeCollector{
 		filerName:       filerName,
 		client:          client,
@@ -144,7 +144,7 @@ func (c *VolumeCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	logger.Debugf("VolumeCollector[%v] Collect() exporting %d volumes", c.filerName, len(c.volumes))
 	for _, volume := range c.volumes {
-		volumeLabels := []string{volume.Vserver, volume.Volume, volume.ProjectID, volume.ShareID, volume.ShareName}
+		volumeLabels := []string{volume.Vserver, volume.Volume, volume.ProjectID, volume.ShareID, volume.ShareName, volume.ShareType}
 		for _, m := range c.metrics {
 			ch <- prometheus.MustNewConstMetric(m.desc, m.valueType, m.getterFn(volume), volumeLabels...)
 		}

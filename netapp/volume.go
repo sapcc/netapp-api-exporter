@@ -13,6 +13,7 @@ type Volume struct {
 	ProjectID                         string
 	ShareID                           string
 	ShareName                         string
+	ShareType                         string
 	FilerName                         string
 	Vserver                           string
 	Volume                            string
@@ -133,10 +134,11 @@ func parseVolume(volumeInfo n.VolumeInfo) (*Volume, error) {
 		volume.PercentageTotalSpaceSaved = percentageTotalSpaceSaved
 	}
 	if volumeInfo.VolumeIDAttributes.Comment != "" {
-		shareID, shareName, projectID, err := parseVolumeComment(volumeInfo.VolumeIDAttributes.Comment)
+		shareID, shareName, shareType, projectID, err := parseVolumeComment(volumeInfo.VolumeIDAttributes.Comment)
 		if err == nil {
 			volume.ShareID = shareID
 			volume.ShareName = shareName
+			volume.ShareType = shareType
 			volume.ProjectID = projectID
 		}
 	}
@@ -154,15 +156,17 @@ func parseVolume(volumeInfo n.VolumeInfo) (*Volume, error) {
 	return &volume, nil
 }
 
-func parseVolumeComment(c string) (shareID string, shareName string, projectID string, err error) {
+func parseVolumeComment(c string) (shareID, shareName, shareType, projectID string, err error) {
 	r := regexp.MustCompile(`(\w+): ([\w-]+)`)
-	matches := r.FindAllStringSubmatch(c, 3)
+	matches := r.FindAllStringSubmatch(c, 4)
 	for _, m := range matches {
 		switch m[1] {
 		case "share_id":
 			shareID = m[2]
 		case "share_name":
 			shareName = m[2]
+		case "share_type":
+			shareType = m[2]
 		case "project":
 			projectID = m[2]
 		}
