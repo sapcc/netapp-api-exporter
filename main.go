@@ -8,12 +8,14 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/sirupsen/logrus"
+	"github.com/sapcc/netapp-api-exporter/pkg/collector"
 	"gopkg.in/alecthomas/kingpin.v2"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var (
-	configFile               = kingpin.Flag("config", "Config file").Short('c').Default("./config/netapp_filers.yaml").String()
+	configFile               = kingpin.Flag("config", "Config file").Short('c').Default("").String()
 	listenAddress            = kingpin.Flag("listen", "Listen address").Short('l').Default("0.0.0.0").String()
 	debug                    = kingpin.Flag("debug", "Debug mode").Short('d').Bool()
 	aggregateRetentionPeriod = kingpin.Flag("aggregateRetention", "Aggregate collector retention period").Default("5m").Duration()
@@ -21,7 +23,6 @@ var (
 	disableAggregate         = kingpin.Flag("no-aggregate", "Disable aggregate collector").Bool()
 	disableVolume            = kingpin.Flag("no-volume", "Disable volume collector").Bool()
 	disableSystem            = kingpin.Flag("no-system", "Disable system collector").Bool()
-	logger                   = logrus.New()
 )
 
 type logFormatter struct{}
@@ -29,13 +30,13 @@ type logFormatter struct{}
 func init() {
 	kingpin.Parse()
 
-	logger.Out = os.Stdout
-	logger.SetFormatter(new(logFormatter))
+	log.SetOutput(os.Stdout)
+	log.SetFormatter(new(logFormatter))
 	if *debug {
-		logger.Info("Debug mode")
-		logger.Level = logrus.DebugLevel
+		log.Info("Debug mode")
+		log.SetLevel(log.DebugLevel)
 	} else {
-		logger.Level = logrus.InfoLevel
+		log.SetLevel(log.InfoLevel)
 	}
 }
 
@@ -44,9 +45,9 @@ func main() {
 	var filers []Filer
 	var err error
 	for {
-		filers, err = loadFilers()
+		filers, err = loadFilers(*configFile)
 		if err != nil {
-			logger.Errorf("Failed to load filer configuration: %v. Retry in 10 seconds...", err)
+			log.Errorf("Failed to load filer configuration: %v. Retry in 10 seconds...", err)
 			time.Sleep(10 * time.Second)
 			continue
 		}
@@ -60,28 +61,30 @@ func main() {
 			"filer":             f.Name,
 			"availability_zone": f.AvailabilityZone,
 		}
-		logger.Infof("Register collectors for filer: {Name=%s, Host=%s, Username=%s}", f.Name, f.Host, f.Username)
-		prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(f.scrapeErrorCounter)
+		log.Infof("Register collectors for filer: {Name=%s, Host=%s, Username=%s}", f.Name, f.Host, f.Username)
+		prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(f.ScrapeErrorCounter)
 		if !*disableAggregate {
 			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(
-				NewAggregateCollector(f.Name, f.client, f.scrapeError, *aggregateRetentionPeriod))
+				collector.NewAggregateCollector(f.Name, f.Client, f.ScrapeError, *aggregateRetentionPeriod))
 		}
 		if !*disableVolume {
 			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(
-				NewVolumeCollector(f.Name, f.client, f.scrapeError, *volumeRetentionPeriod))
+				collector.NewVolumeCollector(f.Name, f.Client, f.ScrapeError, *volumeRetentionPeriod))
 		}
 		if !*disableSystem {
-			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(NewSystemCollector(f.Name, f.client))
+			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(
+				collector.NewSystemCollector(f.Name, f.Client))
 		}
 	}
 
 	port := "9108"
 	addr := *listenAddress + ":" + port
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
-	logger.Fatal(http.ListenAndServe(addr, nil))
+	log.Debugf("Open link http://%s/metrics for metrics", addr)
+	log.Fatal(http.ListenAndServe(addr, nil))
 }
 
-func (f *logFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+func (f *logFormatter) Format(entry *log.Entry) ([]byte, error) {
 	s := fmt.Sprintf("%s [%s] %s\t", entry.Time.Format("2006-01-02 15:04:05.000"), entry.Level, entry.Message)
 	for k, v := range entry.Data {
 		s = s + fmt.Sprintf(" %s=%s", k, v)

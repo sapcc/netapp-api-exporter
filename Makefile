@@ -24,10 +24,8 @@ docker: bin/${app}_linux_amd64
 	docker push $(IMAGE):latest
 
 .PHONY: dev
-dev: 
-	rm -f bin/${app}_dev
-	go build -o bin/${app}_dev
-	DEV=1 ./bin/${app}_dev -c config/netapp_filers.yaml -l localhost
+dev: *.go
+	DEV=1 go run $^ -l localhost
 
 .PHONY: clean
 clean:

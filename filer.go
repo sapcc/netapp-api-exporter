@@ -5,8 +5,10 @@ import (
 	"os"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sapcc/netapp-api-exporter/netapp"
+	"github.com/sapcc/netapp-api-exporter/pkg/netapp"
 	"gopkg.in/yaml.v2"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const netappApiVersion = "1.7"
@@ -22,17 +24,17 @@ type FilerBase struct {
 
 type Filer struct {
 	FilerBase
-	client             *netapp.Client
-	scrapeError        chan error
-	scrapeErrorCounter prometheus.Counter
+	Client             *netapp.Client
+	ScrapeError        chan error
+	ScrapeErrorCounter prometheus.Counter
 }
 
 func NewFiler(f FilerBase) Filer {
 	filer := Filer{
 		FilerBase:   f,
-		client:      netapp.NewClient(f.Host, f.Username, f.Password, f.Version),
-		scrapeError: make(chan error),
-		scrapeErrorCounter: prometheus.NewCounter(prometheus.CounterOpts{
+		Client:      netapp.NewClient(f.Host, f.Username, f.Password, f.Version),
+		ScrapeError: make(chan error),
+		ScrapeErrorCounter: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: "netapp",
 			Subsystem: "filer",
 			Name:      "scrape_failure",
@@ -42,21 +44,25 @@ func NewFiler(f FilerBase) Filer {
 	go func() {
 		for {
 			select {
-			case <-filer.scrapeError:
-				filer.scrapeErrorCounter.Inc()
+			case <-filer.ScrapeError:
+				filer.ScrapeErrorCounter.Inc()
 			}
 		}
 	}()
 	return filer
 }
 
-func loadFilers() ([]Filer, error) {
+func loadFilers(configFile string) ([]Filer, error) {
 	if os.Getenv("DEV") == "1" {
-		logger.Info("Load filer configuration from env variables")
+		log.SetLevel(log.DebugLevel)
+		log.Debug("Set log level to DebugLevel")
+	}
+	if len(configFile) == 0 {
+		log.Info("Load filer configuration from env variables")
 		return []Filer{loadFilerFromEnv()}, nil
 	} else {
-		logger.Infof("Load filer configuration from %s", *configFile)
-		return loadFilerFromFile(*configFile)
+		log.Infof("Load filer configuration from %s", configFile)
+		return loadFilerFromFile(configFile)
 	}
 }
 

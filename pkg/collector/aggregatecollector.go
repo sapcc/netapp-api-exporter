@@ -1,11 +1,12 @@
-package main
+package collector
 
 import (
 	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sapcc/netapp-api-exporter/netapp"
+	"github.com/sapcc/netapp-api-exporter/pkg/netapp"
+	log "github.com/sirupsen/logrus"
 )
 
 type AggregateCollector struct {
@@ -96,7 +97,7 @@ func (c *AggregateCollector) Collect(ch chan<- prometheus.Metric) {
 	c.mux.Lock()
 	if c.aggregates == nil {
 		if err := c.Fetch(); err != nil {
-			logger.Error(err)
+			log.Error(err)
 			c.errorCh <- err
 			return
 		}
