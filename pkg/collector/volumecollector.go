@@ -135,14 +135,21 @@ func (c *VolumeCollector) Describe(ch chan<- *prometheus.Desc) {
 func (c *VolumeCollector) Collect(ch chan<- prometheus.Metric) {
 	defer c.mux.Unlock()
 	c.mux.Lock()
-	log.Debugf("VolumeCollector[%v] Collect() starts", c.filerName)
+
+	// fetch volumes
 	if c.volumes == nil {
-		if err := c.Fetch(); err != nil {
-			log.Error(err)
-			c.errorCh <- err
-			return
+		c.volumes = c.Fetch()
+		if len(c.volumes) > 0 {
+			time.AfterFunc(c.retentionPeriod, func() {
+				defer c.mux.Unlock()
+				c.mux.Lock()
+				log.Debugf("VolumeCollector[%v] cached volumes cleared", c.filerName)
+				c.volumes = nil
+			})
 		}
 	}
+
+	// export metrics
 	log.Debugf("VolumeCollector[%v] Collect() exporting %d volumes", c.filerName, len(c.volumes))
 	for _, volume := range c.volumes {
 		volumeLabels := []string{volume.Vserver, volume.Volume, volume.ProjectID, volume.ShareID, volume.ShareName, volume.ShareType}
@@ -153,18 +160,13 @@ func (c *VolumeCollector) Collect(ch chan<- prometheus.Metric) {
 	return
 }
 
-func (c *VolumeCollector) Fetch() error {
+func (c *VolumeCollector) Fetch() []*netapp.Volume {
+	log.Debugf("VolumeCollector[%v] starts fetching volumes", c.filerName)
 	volumes, err := c.client.ListVolumes()
 	if err != nil {
-		return err
+		log.Error(err)
+		return nil
 	}
-	c.volumes = volumes
-	log.Debugf("VolumeCollector[%v] %d volumes are fetched", c.filerName, len(c.volumes))
-	time.AfterFunc(c.retentionPeriod, func() {
-		defer c.mux.Unlock()
-		c.mux.Lock()
-		log.Debugf("VolumeCollector[%v] cached data cleared", c.filerName)
-		c.volumes = nil
-	})
-	return nil
+	log.Debugf("VolumeCollector[%v] fetched %d volumes", c.filerName, len(volumes))
+	return volumes
 }
