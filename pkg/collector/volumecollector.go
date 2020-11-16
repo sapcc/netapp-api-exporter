@@ -19,7 +19,7 @@ type VolumeCollector struct {
 	scrapeFailureCounter prometheus.Counter
 	scrapeDurationGauge  prometheus.Gauge
 	mux                  sync.Mutex
-	retentionPeriod      time.Duration
+	fetchPeriod          time.Duration
 	errorCh              chan<- error
 }
 
@@ -29,7 +29,7 @@ type VolumeMetric struct {
 	getterFn  func(volume *netapp.Volume) float64
 }
 
-func NewVolumeCollector(filerName string, client *netapp.Client, ch chan<- error, retentionPeriod time.Duration) *VolumeCollector {
+func NewVolumeCollector(filerName string, client *netapp.Client, ch chan<- error, fetchPeriod time.Duration) *VolumeCollector {
 	volumeLabels := []string{"vserver", "volume", "project_id", "share_id", "share_name", "share_type"}
 	volumeMetrics := []VolumeMetric{
 		{
@@ -146,17 +146,19 @@ func NewVolumeCollector(filerName string, client *netapp.Client, ch chan<- error
 			Help: "number of failures for fetching volumes from filer",
 		},
 	)
-	return &VolumeCollector{
+	c := &VolumeCollector{
 		filerName:            filerName,
 		client:               client,
 		errorCh:              ch,
-		retentionPeriod:      retentionPeriod,
+		fetchPeriod:          fetchPeriod,
 		volumeMetrics:        volumeMetrics,
 		volumeTotalGauge:     volumeTotalGauge,
 		scrapeCounter:        scrapeCounter,
 		scrapeFailureCounter: scrapeFailureCounter,
 		scrapeDurationGauge:  scrapeDurationGauge,
 	}
+	go c.PeriodicFetch(nil)
+	return c
 }
 
 func (c *VolumeCollector) Describe(ch chan<- *prometheus.Desc) {
@@ -173,21 +175,6 @@ func (c *VolumeCollector) Collect(ch chan<- prometheus.Metric) {
 	defer c.mux.Unlock()
 	c.mux.Lock()
 
-	// fetch volumes
-	if c.volumes == nil {
-		c.volumes = c.Fetch()
-		c.volumeTotalGauge.Set(float64(len(c.volumes)))
-		if len(c.volumes) > 0 {
-			time.AfterFunc(c.retentionPeriod, func() {
-				defer c.mux.Unlock()
-				c.mux.Lock()
-				log.Debugf("VolumeCollector[%v] cached volumes cleared", c.filerName)
-				c.volumes = nil
-				c.volumeTotalGauge.Set(0)
-			})
-		}
-	}
-
 	// export metrics
 	log.Debugf("VolumeCollector[%v] Collect() exporting %d volumes", c.filerName, len(c.volumes))
 	for _, volume := range c.volumes {
@@ -203,8 +190,45 @@ func (c *VolumeCollector) Collect(ch chan<- prometheus.Metric) {
 	return
 }
 
+func (c *VolumeCollector) PeriodicFetch(cancelCh <-chan int) {
+	var clearTimer *time.Timer
+	startTimer := time.NewTimer(time.Millisecond)
+	fetchTicker := time.NewTicker(c.fetchPeriod)
+
+	for {
+		select {
+		case <-cancelCh:
+			fetchTicker.Stop()
+			clearTimer.Stop()
+			break
+		case <-fetchTicker.C:
+		case <-startTimer.C:
+			// Fetch immediately without waiting for the first tick
+		}
+
+		volumes := c.Fetch()
+		if len(volumes) > 0 {
+			c.mux.Lock()
+			c.volumes = volumes
+			c.mux.Unlock()
+			c.volumeTotalGauge.Set(float64(len(volumes)))
+
+			// Clear cached data if next fetching fails. This prevents exporting outdated data.
+			if clearTimer != nil {
+				clearTimer.Stop()
+			}
+			clearTimer = time.AfterFunc(2*c.fetchPeriod, func() {
+				c.mux.Lock()
+				c.volumes = nil
+				c.mux.Unlock()
+				c.volumeTotalGauge.Set(0)
+			})
+		}
+	}
+}
+
 func (c *VolumeCollector) Fetch() []*netapp.Volume {
-	log.Debugf("VolumeCollector[%v] starts fetching volumes", c.filerName)
+	log.Debugf("VolumeCollector[%v] fetch() starts fetching volumes", c.filerName)
 	start := time.Now()
 	volumes, err := c.client.ListVolumes()
 	elapsed := time.Now().Sub(start)
@@ -215,6 +239,6 @@ func (c *VolumeCollector) Fetch() []*netapp.Volume {
 		c.scrapeFailureCounter.Inc()
 		return nil
 	}
-	log.Debugf("VolumeCollector[%v] fetched %d volumes", c.filerName, len(volumes))
+	log.Debugf("VolumeCollector[%v] fetch() fetched %d volumes", c.filerName, len(volumes))
 	return volumes
 }
