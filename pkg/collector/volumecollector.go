@@ -222,6 +222,7 @@ func (c *VolumeCollector) PeriodicFetch(cancelCh <-chan int) {
 				c.volumes = nil
 				c.mux.Unlock()
 				c.volumeTotalGauge.Set(0)
+				log.Debugf("VolumeCollector[%v] cleared cached volumes", c.filerName)
 			})
 		}
 	}

@@ -15,14 +15,13 @@ import (
 )
 
 var (
-	configFile               = kingpin.Flag("config", "Config file").Short('c').Default("").String()
-	listenAddress            = kingpin.Flag("listen", "Listen address").Short('l').Default("0.0.0.0").String()
-	debug                    = kingpin.Flag("debug", "Debug mode").Short('d').Bool()
-	aggregateRetentionPeriod = kingpin.Flag("aggregateRetention", "Aggregate collector retention period").Default("5m").Duration()
-	volumeRetentionPeriod    = kingpin.Flag("volumeRetention", "Volume collector retention period").Default("2m").Duration()
-	disableAggregate         = kingpin.Flag("no-aggregate", "Disable aggregate collector").Bool()
-	disableVolume            = kingpin.Flag("no-volume", "Disable volume collector").Bool()
-	disableSystem            = kingpin.Flag("no-system", "Disable system collector").Bool()
+	configFile        = kingpin.Flag("config", "Config file").Short('c').Default("").String()
+	listenAddress     = kingpin.Flag("listen", "Listen address").Short('l').Default("0.0.0.0").String()
+	debug             = kingpin.Flag("debug", "Debug mode").Short('d').Bool()
+	volumeFetchPeriod = kingpin.Flag("volume-fetch-period", "Period of asynchronously fetching volumes").Short('v').Default("2m").Duration()
+	disableAggregate  = kingpin.Flag("no-aggregate", "Disable aggregate collector").Bool()
+	disableVolume     = kingpin.Flag("no-volume", "Disable volume collector").Bool()
+	disableSystem     = kingpin.Flag("no-system", "Disable system collector").Bool()
 )
 
 type logFormatter struct{}
@@ -65,11 +64,11 @@ func main() {
 		prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(f.ScrapeErrorCounter)
 		if !*disableAggregate {
 			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(
-				collector.NewAggregateCollector(f.Name, f.Client, f.ScrapeError, *aggregateRetentionPeriod))
+				collector.NewAggregateCollector(f.Name, f.Client, f.ScrapeError))
 		}
 		if !*disableVolume {
 			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(
-				collector.NewVolumeCollector(f.Name, f.Client, f.ScrapeError, *volumeRetentionPeriod))
+				collector.NewVolumeCollector(f.Name, f.Client, f.ScrapeError, *volumeFetchPeriod))
 		}
 		if !*disableSystem {
 			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(

@@ -24,7 +24,7 @@ type AggregateMetric struct {
 	getterFn  func(aggr *netapp.Aggregate) float64
 }
 
-func NewAggregateCollector(filerName string, client *netapp.Client, ch chan<- error, fetchPeriod time.Duration) *AggregateCollector {
+func NewAggregateCollector(filerName string, client *netapp.Client, ch chan<- error) *AggregateCollector {
 	aggrLabels := []string{"node", "aggregate"}
 	aggrMetrics := []AggregateMetric{
 		{
