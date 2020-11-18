@@ -20,7 +20,6 @@ type VolumeCollector struct {
 	scrapeDurationGauge  prometheus.Gauge
 	mux                  sync.Mutex
 	fetchPeriod          time.Duration
-	errorCh              chan<- error
 }
 
 type VolumeMetric struct {
@@ -29,7 +28,7 @@ type VolumeMetric struct {
 	getterFn  func(volume *netapp.Volume) float64
 }
 
-func NewVolumeCollector(filerName string, client *netapp.Client, ch chan<- error, fetchPeriod time.Duration) *VolumeCollector {
+func NewVolumeCollector(filerName string, client *netapp.Client, fetchPeriod time.Duration) *VolumeCollector {
 	volumeLabels := []string{"vserver", "volume", "project_id", "share_id", "share_name", "share_type"}
 	volumeMetrics := []VolumeMetric{
 		{
@@ -149,7 +148,6 @@ func NewVolumeCollector(filerName string, client *netapp.Client, ch chan<- error
 	c := &VolumeCollector{
 		filerName:            filerName,
 		client:               client,
-		errorCh:              ch,
 		fetchPeriod:          fetchPeriod,
 		volumeMetrics:        volumeMetrics,
 		volumeTotalGauge:     volumeTotalGauge,

@@ -61,14 +61,14 @@ func main() {
 			"availability_zone": f.AvailabilityZone,
 		}
 		log.Infof("Register collectors for filer: {Name=%s, Host=%s, Username=%s}", f.Name, f.Host, f.Username)
-		prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(f.ScrapeErrorCounter)
+		prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(f.ScrapeFailures)
 		if !*disableAggregate {
 			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(
-				collector.NewAggregateCollector(f.Name, f.Client, f.ScrapeError))
+				collector.NewAggregateCollector(f.Name, f.Client))
 		}
 		if !*disableVolume {
 			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(
-				collector.NewVolumeCollector(f.Name, f.Client, f.ScrapeError, *volumeFetchPeriod))
+				collector.NewVolumeCollector(f.Name, f.Client, *volumeFetchPeriod))
 		}
 		if !*disableSystem {
 			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(

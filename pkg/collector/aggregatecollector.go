@@ -15,7 +15,6 @@ type AggregateCollector struct {
 	scrapeCounter        prometheus.Counter
 	scrapeFailureCounter prometheus.Counter
 	scrapeDurationGauge  prometheus.Gauge
-	errorCh              chan<- error
 }
 
 type AggregateMetric struct {
@@ -24,7 +23,7 @@ type AggregateMetric struct {
 	getterFn  func(aggr *netapp.Aggregate) float64
 }
 
-func NewAggregateCollector(filerName string, client *netapp.Client, ch chan<- error) *AggregateCollector {
+func NewAggregateCollector(filerName string, client *netapp.Client) *AggregateCollector {
 	aggrLabels := []string{"node", "aggregate"}
 	aggrMetrics := []AggregateMetric{
 		{
@@ -98,7 +97,6 @@ func NewAggregateCollector(filerName string, client *netapp.Client, ch chan<- er
 	return &AggregateCollector{
 		filerName:            filerName,
 		client:               client,
-		errorCh:              ch,
 		aggregateMetrics:     aggrMetrics,
 		scrapeDurationGauge:  scrapeDurationGauge,
 		scrapeCounter:        scrapeCounter,

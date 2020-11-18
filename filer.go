@@ -3,6 +3,8 @@ package main
 import (
 	"io/ioutil"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sapcc/netapp-api-exporter/pkg/netapp"
@@ -24,31 +26,46 @@ type FilerBase struct {
 
 type Filer struct {
 	FilerBase
-	Client             *netapp.Client
-	ScrapeError        chan error
-	ScrapeErrorCounter prometheus.Counter
+	Client         *netapp.Client
+	ScrapeFailures *prometheus.CounterVec
 }
 
 func NewFiler(f FilerBase) Filer {
 	filer := Filer{
-		FilerBase:   f,
-		Client:      netapp.NewClient(f.Host, f.Username, f.Password, f.Version),
-		ScrapeError: make(chan error),
-		ScrapeErrorCounter: prometheus.NewCounter(prometheus.CounterOpts{
-			Namespace: "netapp",
-			Subsystem: "filer",
-			Name:      "scrape_failure",
-			Help:      "Number of failed scrapes to netapp filer.",
-		}),
+		FilerBase: f,
+		Client:    netapp.NewClient(f.Host, f.Username, f.Password, f.Version),
+		ScrapeFailures: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "netapp_filer_scrape_failure",
+				Help: "Number of failed scrapes to netapp filer.",
+			},
+			[]string{"status"},
+		),
 	}
+
+	// check if client works properly every 5 miniutes
 	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		timer := time.NewTimer(time.Millisecond)
 		for {
 			select {
-			case <-filer.ScrapeError:
-				filer.ScrapeErrorCounter.Inc()
+			case <-ticker.C:
+			case <-timer.C:
+			}
+			statusCode, err := filer.Client.CheckCluster()
+			if err != nil {
+				log.Errorf("check client: %v", err)
+			}
+			switch statusCode {
+			case 200, 201, 202, 204, 205, 206:
+			default:
+				filer.ScrapeFailures.With(
+					prometheus.Labels{"status": strconv.Itoa(statusCode)},
+				).Inc()
 			}
 		}
 	}()
+
 	return filer
 }
 
