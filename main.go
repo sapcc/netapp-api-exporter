@@ -55,6 +55,9 @@ func main() {
 
 	reg := prometheus.NewPedanticRegistry()
 
+	// register go process collector
+	reg.MustRegister(prometheus.NewGoCollector())
+
 	for _, f := range filers {
 		extraLabels := prometheus.Labels{
 			"filer":             f.Name,
