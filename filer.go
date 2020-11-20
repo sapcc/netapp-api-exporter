@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"io/ioutil"
 	"net"
@@ -28,9 +29,10 @@ type FilerBase struct {
 
 type Filer struct {
 	FilerBase
-	Client         *netapp.Client
-	ScrapeFailures *prometheus.CounterVec
-	FilerDNSErrors prometheus.Counter
+	Client               *netapp.Client
+	ScrapeFailures       *prometheus.CounterVec
+	FilerDNSFailures     prometheus.Counter
+	FilerTimeoutFailures prometheus.Counter
 }
 
 func NewFiler(f FilerBase) Filer {
@@ -44,12 +46,22 @@ func NewFiler(f FilerBase) Filer {
 			},
 			[]string{"status"},
 		),
-		FilerDNSErrors: prometheus.NewCounter(
+		FilerDNSFailures: prometheus.NewCounter(
 			prometheus.CounterOpts{
 				Name: "netapp_filer_dns_error",
 				Help: "netapp filer host unknown",
 				ConstLabels: prometheus.Labels{
 					"host": f.Host,
+				},
+			},
+		),
+		FilerTimeoutFailures: prometheus.NewCounter(
+			prometheus.CounterOpts{
+				Name: "netapp_filer_timeout_error",
+				Help: "HTTP request timeout to netapp filer",
+				ConstLabels: prometheus.Labels{
+					"host":    f.Host,
+					"timeout": (30 * time.Second).String(),
 				},
 			},
 		),
@@ -68,8 +80,11 @@ func NewFiler(f FilerBase) Filer {
 			statusCode, err := filer.Client.CheckCluster()
 			if err != nil {
 				if errors.As(err, &dnsError) {
-					filer.FilerDNSErrors.Inc()
+					filer.FilerDNSFailures.Inc()
 					log.Errorf("Filer check failed (DNS error): Unknown host %s", f.Host)
+				} else if errors.Is(err, context.DeadlineExceeded) {
+					filer.FilerTimeoutFailures.Inc()
+					log.Errorf("Filer check failed: connect to %s timeout (%v)", f.Host, 30*time.Second)
 				} else {
 					log.Error(err)
 				}
