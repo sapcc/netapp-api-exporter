@@ -65,6 +65,7 @@ func main() {
 		}
 		log.Infof("Register collectors for filer: {Name=%s, Host=%s, Username=%s}", f.Name, f.Host, f.Username)
 		prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(f.ScrapeFailures)
+		prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(f.FilerDNSErrors)
 		if !*disableAggregate {
 			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(
 				collector.NewAggregateCollector(f.Name, f.Client))

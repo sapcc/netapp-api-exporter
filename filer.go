@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"io/ioutil"
+	"net"
 	"os"
 	"strconv"
 	"time"
@@ -28,6 +30,7 @@ type Filer struct {
 	FilerBase
 	Client         *netapp.Client
 	ScrapeFailures *prometheus.CounterVec
+	FilerDNSErrors prometheus.Counter
 }
 
 func NewFiler(f FilerBase) Filer {
@@ -41,10 +44,20 @@ func NewFiler(f FilerBase) Filer {
 			},
 			[]string{"status"},
 		),
+		FilerDNSErrors: prometheus.NewCounter(
+			prometheus.CounterOpts{
+				Name: "netapp_filer_dns_error",
+				Help: "netapp filer host unknown",
+				ConstLabels: prometheus.Labels{
+					"host": f.Host,
+				},
+			},
+		),
 	}
 
 	// check if client works properly every 5 miniutes
 	go func() {
+		var dnsError *net.DNSError
 		ticker := time.NewTicker(5 * time.Minute)
 		timer := time.NewTimer(time.Millisecond)
 		for {
@@ -54,10 +67,15 @@ func NewFiler(f FilerBase) Filer {
 			}
 			statusCode, err := filer.Client.CheckCluster()
 			if err != nil {
-				log.Errorf("check client: %v", err)
+				if errors.As(err, &dnsError) {
+					filer.FilerDNSErrors.Inc()
+					log.Errorf("Filer check failed (DNS error): Unknown host %s", f.Host)
+				} else {
+					log.Error(err)
+				}
 			}
 			switch statusCode {
-			case 200, 201, 202, 204, 205, 206:
+			case 0, 200, 201, 202, 204, 205, 206:
 			default:
 				filer.ScrapeFailures.With(
 					prometheus.Labels{"status": strconv.Itoa(statusCode)},
@@ -130,3 +148,12 @@ func getEnvWithDefaultValue(key, defaultValue string) string {
 		return defaultValue
 	}
 }
+
+// func getInnerError(e interface{}) error {
+// 	if e.Err != nil {
+// 		if nextErr, ok := e.Err.(error); ok {
+// 			return getInnerError(nextErr)
+// 		}
+// 	}
+// 	return e
+// }
