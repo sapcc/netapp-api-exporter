@@ -17,6 +17,7 @@ type Volume struct {
 	FilerName                         string
 	Vserver                           string
 	Volume                            string
+	VolumeType                        string
 	Comment                           string
 	State                             int
 	Size                              int
@@ -71,6 +72,7 @@ func newVolumeOpts(maxRecords int) *n.VolumeOptions {
 					OwningVserverName: "x",
 					OwningVserverUUID: "x",
 					Comment:           "x",
+					Type:              "x",
 				},
 				VolumeSpaceAttributes: &n.VolumeSpaceAttributes{
 					Size:                      1,
@@ -100,6 +102,7 @@ func parseVolume(volumeInfo n.VolumeInfo) (*Volume, error) {
 	if volumeInfo.VolumeIDAttributes != nil {
 		volume.Vserver = volumeInfo.VolumeIDAttributes.OwningVserverName
 		volume.Volume = volumeInfo.VolumeIDAttributes.Name
+		volume.VolumeType = volumeInfo.VolumeIDAttributes.Type
 	} else {
 		msg := fmt.Sprintf("missing VolumeIDAttribtues in %+v", volumeInfo)
 		return nil, errors.New(msg)
