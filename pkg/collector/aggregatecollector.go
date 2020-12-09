@@ -74,6 +74,19 @@ func NewAggregateCollector(filerName string, client *netapp.Client) *AggregateCo
 				nil),
 			valueType: prometheus.GaugeValue,
 			getterFn:  func(m *netapp.Aggregate) float64 { return m.PhysicalUsedPercent },
+		}, {
+			desc: prometheus.NewDesc(
+				"netapp_aggregate_is_encrypted",
+				"Netapp Aggregate Metrics: is encrypted",
+				aggrLabels,
+				nil),
+			valueType: prometheus.GaugeValue,
+			getterFn: func(m *netapp.Aggregate) float64 {
+				if m.IsEncrypted {
+					return 1.0
+				}
+				return 0.0
+			},
 		},
 	}
 	scrapeDurationGauge := prometheus.NewGauge(

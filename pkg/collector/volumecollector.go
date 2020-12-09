@@ -119,6 +119,19 @@ func NewVolumeCollector(filerName string, client *netapp.Client, fetchPeriod tim
 				nil),
 			valueType: prometheus.GaugeValue,
 			getterFn:  func(v *netapp.Volume) float64 { return v.PercentageDeduplicationSpaceSaved },
+		}, {
+			desc: prometheus.NewDesc(
+				"netapp_volume_is_encrypted",
+				"Netapp Volume Metrics: encrypt",
+				volumeLabels,
+				nil),
+			valueType: prometheus.GaugeValue,
+			getterFn: func(v *netapp.Volume) float64 {
+				if v.IsEncrypted {
+					return 1.0
+				}
+				return 0.0
+			},
 		},
 	}
 	volumeTotalGauge := prometheus.NewGauge(

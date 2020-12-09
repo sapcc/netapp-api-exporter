@@ -16,6 +16,7 @@ type Aggregate struct {
 	PercentUsedCapacity float64
 	PhysicalUsed        float64
 	PhysicalUsedPercent float64
+	IsEncrypted         bool
 }
 
 func (c *Client) ListAggregates() (aggregates []*Aggregate, err error) {
@@ -51,6 +52,7 @@ func newAggrOpts(isRootAggregate bool) *n.AggrOptions {
 			},
 		},
 		DesiredAttributes: &n.AggrInfo{
+			AggrRaidAttributes:      &n.AggrRaidAttributes{},
 			AggrOwnershipAttributes: &n.AggrOwnershipAttributes{},
 			AggrSpaceAttributes:     &n.AggrSpaceAttributes{},
 		},
@@ -58,7 +60,11 @@ func newAggrOpts(isRootAggregate bool) *n.AggrOptions {
 }
 
 func parseAggregate(aggrInfo n.AggrInfo) *Aggregate {
+	var isEncrypted bool
 	percentUsedCapacity, _ := strconv.ParseFloat(aggrInfo.AggrSpaceAttributes.PercentUsedCapacity, 64)
+	if aggrInfo.AggrRaidAttributes.IsEncrypted != nil && *aggrInfo.AggrRaidAttributes.IsEncrypted {
+		isEncrypted = true
+	}
 	return &Aggregate{
 		Name:                aggrInfo.AggregateName,
 		OwnerName:           aggrInfo.AggrOwnershipAttributes.OwnerName,
@@ -69,5 +75,6 @@ func parseAggregate(aggrInfo n.AggrInfo) *Aggregate {
 		PercentUsedCapacity: percentUsedCapacity,
 		PhysicalUsed:        float64(aggrInfo.AggrSpaceAttributes.PhysicalUsed),
 		PhysicalUsedPercent: float64(aggrInfo.AggrSpaceAttributes.PhysicalUsedPercent),
+		IsEncrypted:         isEncrypted,
 	}
 }

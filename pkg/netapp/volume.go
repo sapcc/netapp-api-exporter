@@ -31,6 +31,7 @@ type Volume struct {
 	PercentageCompressionSpaceSaved   float64
 	PercentageDeduplicationSpaceSaved float64
 	PercentageTotalSpaceSaved         float64
+	IsEncrypted                       bool
 }
 
 func (c *Client) ListVolumes() (volumes []*Volume, err error) {
@@ -67,6 +68,7 @@ func newVolumeOpts(maxRecords int) *n.VolumeOptions {
 		MaxRecords: maxRecords,
 		DesiredAttributes: &n.VolumeQuery{
 			VolumeInfo: &n.VolumeInfo{
+				Encrypt: "x",
 				VolumeIDAttributes: &n.VolumeIDAttributes{
 					Name:              "x",
 					OwningVserverName: "x",
@@ -155,6 +157,11 @@ func parseVolume(volumeInfo n.VolumeInfo) (*Volume, error) {
 		} else if volumeInfo.VolumeStateAttributes.State == "quiesced" {
 			volume.State = 4
 		}
+	}
+	if volumeInfo.Encrypt == "true" {
+		volume.IsEncrypted = true
+	} else {
+		volume.IsEncrypted = false
 	}
 	return &volume, nil
 }
