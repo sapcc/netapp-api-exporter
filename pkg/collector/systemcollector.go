@@ -37,7 +37,12 @@ func (c *SystemCollector) Collect(ch chan<- prometheus.Metric) {
 		log.Error(err)
 		return
 	}
-	version := fullVersion[:strings.Index(fullVersion, ":")]
+	idx := strings.Index(fullVersion, ":")
+	if idx == -1 {
+		log.Warnf("Failed to extract version from string %q", fullVersion)
+		return
+	}
+	version := fullVersion[:idx]
 	ch <- prometheus.MustNewConstMetric(
 		c.versionDesc,
 		prometheus.GaugeValue,
