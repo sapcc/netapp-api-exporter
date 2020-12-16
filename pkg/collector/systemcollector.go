@@ -39,7 +39,7 @@ func (c *SystemCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	idx := strings.Index(fullVersion, ":")
 	if idx == -1 {
-		log.Warnf("Failed to extract version from string %q", fullVersion)
+		log.Warnf("[%s] Failed to extract version from string %q", c.filerName, fullVersion)
 		return
 	}
 	version := fullVersion[:idx]
