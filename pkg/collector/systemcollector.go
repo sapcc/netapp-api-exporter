@@ -14,7 +14,7 @@ type SystemCollector struct {
 	client      *netapp.Client
 }
 
-func NewSystemCollector(filerName string, client *netapp.Client) *SystemCollector {
+func NewSystemCollector(client *netapp.Client, filerName string) *SystemCollector {
 	return &SystemCollector{
 		filerName: filerName,
 		client:    client,

@@ -69,15 +69,15 @@ func main() {
 		prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(f.FilerTimeoutFailures)
 		if !*disableAggregate {
 			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(
-				collector.NewAggregateCollector(f.Name, f.Client))
+				collector.NewAggregateCollector(f.Client, f.Name, f.AggregatePattern))
 		}
 		if !*disableVolume {
 			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(
-				collector.NewVolumeCollector(f.Name, f.Client, *volumeFetchPeriod))
+				collector.NewVolumeCollector(f.Client, f.Name, *volumeFetchPeriod))
 		}
 		if !*disableSystem {
 			prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(
-				collector.NewSystemCollector(f.Name, f.Client))
+				collector.NewSystemCollector(f.Client, f.Name))
 		}
 	}
 

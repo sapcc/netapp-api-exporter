@@ -28,7 +28,7 @@ type VolumeMetric struct {
 	getterFn  func(volume *netapp.Volume) float64
 }
 
-func NewVolumeCollector(filerName string, client *netapp.Client, fetchPeriod time.Duration) *VolumeCollector {
+func NewVolumeCollector(client *netapp.Client, filerName string, fetchPeriod time.Duration) *VolumeCollector {
 	volumeLabels := []string{"vserver", "volume", "volume_type", "project_id", "share_id", "share_name", "share_type"}
 	volumeMetrics := []VolumeMetric{
 		{

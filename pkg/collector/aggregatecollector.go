@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"regexp"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -9,8 +10,9 @@ import (
 )
 
 type AggregateCollector struct {
-	filerName            string
 	client               *netapp.Client
+	filerName            string
+	aggregatePattern     string
 	aggregateMetrics     []AggregateMetric
 	scrapeCounter        prometheus.Counter
 	scrapeFailureCounter prometheus.Counter
@@ -23,7 +25,7 @@ type AggregateMetric struct {
 	getterFn  func(aggr *netapp.Aggregate) float64
 }
 
-func NewAggregateCollector(filerName string, client *netapp.Client) *AggregateCollector {
+func NewAggregateCollector(client *netapp.Client, filerName, aggrPattern string) *AggregateCollector {
 	aggrLabels := []string{"node", "aggregate"}
 	aggrMetrics := []AggregateMetric{
 		{
@@ -108,8 +110,9 @@ func NewAggregateCollector(filerName string, client *netapp.Client) *AggregateCo
 		},
 	)
 	return &AggregateCollector{
-		filerName:            filerName,
 		client:               client,
+		filerName:            filerName,
+		aggregatePattern:     aggrPattern,
 		aggregateMetrics:     aggrMetrics,
 		scrapeDurationGauge:  scrapeDurationGauge,
 		scrapeCounter:        scrapeCounter,
@@ -132,6 +135,17 @@ func (c *AggregateCollector) Collect(ch chan<- prometheus.Metric) {
 
 	// export metrics
 	for _, aggr := range aggregates {
+		// filter aggregate here
+		matched, err := regexp.MatchString(c.aggregatePattern, aggr.Name)
+		if err != nil {
+			log.Error(err)
+		}
+		if !matched {
+			log.Debugf("AggregateCollector[%v] Collect(): %s does not match "+
+				"pattern %q", c.filerName, aggr.Name, c.aggregatePattern)
+			continue
+		}
+
 		labels := []string{aggr.OwnerName, aggr.Name}
 		for _, m := range c.aggregateMetrics {
 			ch <- prometheus.MustNewConstMetric(m.desc, m.valueType, m.getterFn(aggr), labels...)

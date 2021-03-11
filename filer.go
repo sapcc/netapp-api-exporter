@@ -22,6 +22,7 @@ type FilerBase struct {
 	Name             string `yaml:"name"`
 	Host             string `yaml:"host"`
 	AvailabilityZone string `yaml:"availability_zone"`
+	AggregatePattern string `yaml:"aggregate_pattern"`
 	Username         string `yaml:"username"`
 	Password         string `yaml:"password"`
 	Version          string `yaml:"version"`
@@ -142,11 +143,12 @@ func loadFilerFromFile(fileName string) (filers []Filer, err error) {
 func loadFilerFromEnv() Filer {
 	name := os.Getenv("NETAPP_NAME")
 	host := os.Getenv("NETAPP_HOST")
+	pattern := os.Getenv("NETAPP_AGGREGATE_PATTERN")
 	username := os.Getenv("NETAPP_USERNAME")
 	password := os.Getenv("NETAPP_PASSWORD")
 	az := os.Getenv("NETAPP_AZ")
 	version := getEnvWithDefaultValue("Netapp_API_VERSION", netappApiVersion)
-	return NewFiler(FilerBase{name, host, az, username, password, version})
+	return NewFiler(FilerBase{name, host, az, pattern, username, password, version})
 }
 
 func getAuthFromEnv() (username, password string) {
