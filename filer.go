@@ -1,13 +1,8 @@
 package main
 
 import (
-	"context"
-	"errors"
 	"io/ioutil"
-	"net"
 	"os"
-	"strconv"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sapcc/netapp-api-exporter/pkg/netapp"
@@ -47,58 +42,7 @@ func NewFiler(f FilerBase) Filer {
 			},
 			[]string{"status"},
 		),
-		FilerDNSFailures: prometheus.NewCounter(
-			prometheus.CounterOpts{
-				Name: "netapp_filer_dns_error",
-				Help: "netapp filer host unknown",
-				ConstLabels: prometheus.Labels{
-					"host": f.Host,
-				},
-			},
-		),
-		FilerTimeoutFailures: prometheus.NewCounter(
-			prometheus.CounterOpts{
-				Name: "netapp_filer_timeout_error",
-				Help: "HTTP request timeout to netapp filer",
-				ConstLabels: prometheus.Labels{
-					"host":    f.Host,
-					"timeout": (30 * time.Second).String(),
-				},
-			},
-		),
 	}
-
-	// check if client works properly every 5 miniutes
-	go func() {
-		var dnsError *net.DNSError
-		ticker := time.NewTicker(5 * time.Minute)
-		timer := time.NewTimer(time.Millisecond)
-		for {
-			select {
-			case <-ticker.C:
-			case <-timer.C:
-			}
-			statusCode, err := filer.Client.CheckCluster()
-			if err != nil {
-				if errors.As(err, &dnsError) {
-					filer.FilerDNSFailures.Inc()
-					log.Errorf("Filer check failed (DNS error): Unknown host %s", f.Host)
-				} else if errors.Is(err, context.DeadlineExceeded) {
-					filer.FilerTimeoutFailures.Inc()
-					log.Errorf("Filer check failed: connect to %s timeout (%v)", f.Host, 30*time.Second)
-				} else {
-					log.Error(err)
-				}
-			}
-			switch statusCode {
-			case 0, 200, 201, 202, 204, 205, 206:
-			default:
-				filer.ScrapeFailures.With(
-					prometheus.Labels{"status": strconv.Itoa(statusCode)},
-				).Inc()
-			}
-		}
-	}()
 
 	return filer
 }
@@ -106,13 +50,13 @@ func NewFiler(f FilerBase) Filer {
 func loadFilers(configFile string) ([]Filer, error) {
 	if os.Getenv("DEV") == "1" {
 		log.SetLevel(log.DebugLevel)
-		log.Debug("Set log level to DebugLevel")
+		log.Debug("set log level to DebugLevel")
 	}
 	if len(configFile) == 0 {
-		log.Info("Load filer configuration from env variables")
+		log.Info("load filer configuration from env variables")
 		return []Filer{loadFilerFromEnv()}, nil
 	} else {
-		log.Infof("Load filer configuration from %s", configFile)
+		log.Infof("load filer configuration from %s", configFile)
 		return loadFilerFromFile(configFile)
 	}
 }
@@ -165,12 +109,3 @@ func getEnvWithDefaultValue(key, defaultValue string) string {
 		return defaultValue
 	}
 }
-
-// func getInnerError(e interface{}) error {
-// 	if e.Err != nil {
-// 		if nextErr, ok := e.Err.(error); ok {
-// 			return getInnerError(nextErr)
-// 		}
-// 	}
-// 	return e
-// }
