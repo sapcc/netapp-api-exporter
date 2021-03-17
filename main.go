@@ -55,6 +55,10 @@ func main() {
 
 	// load filers from configuration and register new colloector for new filer
 	go func() {
+		// fast ticker for iniital load; will be stopped after 10 times or
+		// filers are loaded
+		fastTickerCounter := 0
+		fastTicker := time.NewTicker(10 * time.Second)
 		ticker := time.NewTicker(5 * time.Minute)
 
 		for {
@@ -90,6 +94,12 @@ func main() {
 			}
 
 			select {
+			case <-fastTicker.C:
+				fastTickerCounter += 1
+				if fastTickerCounter == 10 || filers != nil {
+					fastTicker.Stop()
+					log.Debug("fast ticker is stopped")
+				}
 			case <-ticker.C:
 			}
 		}
