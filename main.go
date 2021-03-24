@@ -28,10 +28,10 @@ var (
 	disableVolume     = kingpin.Flag("no-volume", "Disable volume collector").Bool()
 	disableSystem     = kingpin.Flag("no-system", "Disable system collector").Bool()
 
-	UnknownHostErrorCounter = prometheus.NewCounterVec(
+	DNSErrorCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "netapp_filer_dns_error",
-			Help: "netapp filer host unknown",
+			Help: "hostname not resolved",
 		},
 		[]string{"host"},
 	)
@@ -39,6 +39,13 @@ var (
 		prometheus.CounterOpts{
 			Name: "netapp_filer_authentication_error",
 			Help: "access netapp filer failed with 401",
+		},
+		[]string{"host"},
+	)
+	UnknownErrorCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "netapp_filer_unknown_error",
+			Help: "check filer failed with unknown error",
 		},
 		[]string{"host"},
 	)
@@ -50,8 +57,9 @@ func main() {
 	// new prometheus registry and register global collectors
 	reg := prometheus.NewPedanticRegistry()
 	reg.MustRegister(prometheus.NewGoCollector())
-	reg.MustRegister(UnknownHostErrorCounter)
+	reg.MustRegister(DNSErrorCounter)
 	reg.MustRegister(AuthenticationErrorCounter)
+	reg.MustRegister(UnknownErrorCounter)
 
 	// load filers from configuration and register new colloector for new filer
 	go func() {
@@ -98,7 +106,6 @@ func main() {
 				fastTickerCounter += 1
 				if fastTickerCounter == 10 || filers != nil {
 					fastTicker.Stop()
-					log.Debug("fast ticker is stopped")
 				}
 			case <-ticker.C:
 			}
@@ -119,7 +126,7 @@ func checkFiler(f Filer, l *log.Entry) bool {
 	if err != nil {
 		if errors.As(err, &dnsError) {
 			l.Error(err)
-			UnknownHostErrorCounter.WithLabelValues(f.Host).Inc()
+			DNSErrorCounter.WithLabelValues(f.Host).Inc()
 		} else if errors.Is(err, context.DeadlineExceeded) {
 			l.Error(err)
 		} else {
@@ -131,10 +138,11 @@ func checkFiler(f Filer, l *log.Entry) bool {
 	case 0, 200, 201, 202, 204, 205, 206:
 	case 401:
 		AuthenticationErrorCounter.WithLabelValues(f.Host).Inc()
-		l.Error("authentication error")
+		l.Error("check cluster: authentication error")
 		return false
 	default:
-		l.Error("unknown error")
+		UnknownErrorCounter.WithLabelValues(f.Host).Inc()
+		l.Error("check cluster: unknown error", err)
 		return false
 	}
 	return true
@@ -151,7 +159,6 @@ func registerFiler(reg prometheus.Registerer, f Filer) error {
 		"filer":             f.Name,
 		"availability_zone": f.AvailabilityZone,
 	}
-	prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(f.ScrapeFailures)
 	if !*disableAggregate {
 		prometheus.WrapRegistererWith(extraLabels, reg).MustRegister(
 			collector.NewAggregateCollector(f.Client, f.Name, f.AggregatePattern))

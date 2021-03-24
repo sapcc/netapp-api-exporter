@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sapcc/netapp-api-exporter/pkg/netapp"
 	"gopkg.in/yaml.v2"
 
@@ -25,23 +24,13 @@ type FilerBase struct {
 
 type Filer struct {
 	FilerBase
-	Client               *netapp.Client
-	ScrapeFailures       *prometheus.CounterVec
-	FilerDNSFailures     prometheus.Counter
-	FilerTimeoutFailures prometheus.Counter
+	Client *netapp.Client
 }
 
 func NewFiler(f FilerBase) Filer {
 	filer := Filer{
 		FilerBase: f,
 		Client:    netapp.NewClient(f.Host, f.Username, f.Password, f.Version),
-		ScrapeFailures: prometheus.NewCounterVec(
-			prometheus.CounterOpts{
-				Name: "netapp_filer_scrape_failure",
-				Help: "Number of failed scrapes to netapp filer.",
-			},
-			[]string{"status"},
-		),
 	}
 
 	return filer
