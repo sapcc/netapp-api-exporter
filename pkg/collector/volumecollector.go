@@ -247,7 +247,7 @@ func (c *VolumeCollector) Fetch() []*netapp.Volume {
 	c.scrapeCounter.Inc()
 	c.scrapeDurationGauge.Set(elapsed.Seconds())
 	if err != nil {
-		log.Error(err)
+		log.WithError(err).Error("fetch volume failed")
 		c.scrapeFailureCounter.Inc()
 		return nil
 	}

@@ -34,7 +34,7 @@ func (c *SystemCollector) Describe(ch chan<- *prometheus.Desc) {
 func (c *SystemCollector) Collect(ch chan<- prometheus.Metric) {
 	fullVersion, err := c.client.GetSystemVersion()
 	if err != nil {
-		log.Error(err)
+		log.WithError(err).Error("get system version failed")
 		return
 	}
 	idx := strings.Index(fullVersion, ":")

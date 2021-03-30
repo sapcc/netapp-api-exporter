@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -72,7 +71,7 @@ func main() {
 		for {
 			ff, err := loadFilers(*configFile)
 			if err != nil {
-				log.Error(err)
+				log.WithError(err).Error("load filers failed")
 			} else {
 				for _, f := range ff {
 					if _, ok := filers[f.Host]; ok {
@@ -125,12 +124,12 @@ func checkFiler(f Filer, l *log.Entry) bool {
 	l = l.WithField("status", strconv.Itoa(status))
 	if err != nil {
 		if errors.As(err, &dnsError) {
-			l.Error(err)
+			l.WithError(err).Error("check filer failed")
 			DNSErrorCounter.WithLabelValues(f.Host).Inc()
 		} else if errors.Is(err, context.DeadlineExceeded) {
-			l.Error(err)
+			l.WithError(err).Error("check filer failed")
 		} else {
-			l.Error(err)
+			l.WithError(err).Error("check filer failed")
 		}
 		return false
 	}
@@ -138,11 +137,11 @@ func checkFiler(f Filer, l *log.Entry) bool {
 	case 0, 200, 201, 202, 204, 205, 206:
 	case 401:
 		AuthenticationErrorCounter.WithLabelValues(f.Host).Inc()
-		l.Error("check cluster: authentication error")
+		l.Error("check filer failed: authentication error")
 		return false
 	default:
 		UnknownErrorCounter.WithLabelValues(f.Host).Inc()
-		l.Error("check cluster: unknown error", err)
+		l.WithError(err).Error("check filer failed")
 		return false
 	}
 	return true
@@ -178,7 +177,7 @@ func init() {
 	kingpin.Parse()
 
 	log.SetOutput(os.Stdout)
-	log.SetFormatter(new(logFormatter))
+	log.SetFormatter(&log.TextFormatter{})
 	if *debug {
 		log.Info("debug mode")
 		log.SetLevel(log.DebugLevel)
@@ -187,24 +186,24 @@ func init() {
 	}
 }
 
-type logFormatter struct{}
+// type logFormatter struct{}
 
-func (f *logFormatter) Format(entry *log.Entry) ([]byte, error) {
-	var fmtstr string
-	if entry.Level == log.ErrorLevel {
-		fmtstr = "%s %-5v err=%q"
-	} else {
-		fmtstr = "%s %-5v msg=%q"
-	}
-	s := fmt.Sprintf(
-		fmtstr,
-		entry.Time.Format("2006-01-02 15:04:05.000"),
-		strings.ToUpper(entry.Level.String()),
-		entry.Message)
-	for k, v := range entry.Data {
-		if v != "" {
-			s = s + fmt.Sprintf(" %s=%s", k, v)
-		}
-	}
-	return []byte(s + "\n"), nil
-}
+// func (f *logFormatter) Format(entry *log.Entry) ([]byte, error) {
+// 	var fmtstr string
+// 	if entry.Level == log.ErrorLevel {
+// 		fmtstr = "%s %-5v err=%q"
+// 	} else {
+// 		fmtstr = "%s %-5v msg=%q"
+// 	}
+// 	s := fmt.Sprintf(
+// 		fmtstr,
+// 		entry.Time.Format("2006-01-02 15:04:05.000"),
+// 		strings.ToUpper(entry.Level.String()),
+// 		entry.Message)
+// 	for k, v := range entry.Data {
+// 		if v != "" {
+// 			s = s + fmt.Sprintf(" %s=%s", k, v)
+// 		}
+// 	}
+// 	return []byte(s + "\n"), nil
+// }

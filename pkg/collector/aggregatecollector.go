@@ -138,7 +138,7 @@ func (c *AggregateCollector) Collect(ch chan<- prometheus.Metric) {
 		// filter aggregate here
 		matched, err := regexp.MatchString(c.aggregatePattern, aggr.Name)
 		if err != nil {
-			log.Error(err)
+			log.WithError(err).Error("match aggregate name")
 		}
 		if !matched {
 			log.Debugf("AggregateCollector[%v] Collect(): %s does not match "+
@@ -163,7 +163,7 @@ func (c *AggregateCollector) Fetch() []*netapp.Aggregate {
 	c.scrapeCounter.Inc()
 	c.scrapeDurationGauge.Set(elapsed.Seconds())
 	if err != nil {
-		log.Error(err)
+		log.WithError(err).Error("list aggregates failed")
 		c.scrapeFailureCounter.Inc()
 		return nil
 	}
