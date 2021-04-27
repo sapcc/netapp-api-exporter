@@ -41,6 +41,13 @@ var (
 		},
 		[]string{"host"},
 	)
+	TimeoutErrorCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "netapp_filer_timeout_error",
+			Help: "access netapp filer timeout",
+		},
+		[]string{"host"},
+	)
 	UnknownErrorCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "netapp_filer_unknown_error",
@@ -122,26 +129,26 @@ func checkFiler(f Filer, l *log.Entry) bool {
 	var dnsError *net.DNSError
 	status, err := f.Client.CheckCluster()
 	l = l.WithField("status", strconv.Itoa(status))
-	if err != nil {
-		if errors.As(err, &dnsError) {
-			l.WithError(err).Error("check filer failed")
-			DNSErrorCounter.WithLabelValues(f.Host).Inc()
-		} else if errors.Is(err, context.DeadlineExceeded) {
-			l.WithError(err).Error("check filer failed")
-		} else {
-			l.WithError(err).Error("check filer failed")
-		}
-		return false
-	}
 	switch status {
-	case 0, 200, 201, 202, 204, 205, 206:
+	case 200, 201, 202, 204, 205, 206:
 	case 401:
 		AuthenticationErrorCounter.WithLabelValues(f.Host).Inc()
 		l.Error("check filer failed: authentication error")
 		return false
 	default:
-		UnknownErrorCounter.WithLabelValues(f.Host).Inc()
-		l.WithError(err).Error("check filer failed")
+		if err != nil {
+			l.WithError(err).Error("check filer failed")
+			if errors.As(err, &dnsError) {
+				DNSErrorCounter.WithLabelValues(f.Host).Inc()
+			} else if errors.Is(err, context.DeadlineExceeded) {
+				TimeoutErrorCounter.WithLabelValues(f.Host).Inc()
+			} else {
+				UnknownErrorCounter.WithLabelValues(f.Host).Inc()
+			}
+		} else {
+			UnknownErrorCounter.WithLabelValues(f.Host).Inc()
+			l.Error("check filer failed")
+		}
 		return false
 	}
 	return true
@@ -185,25 +192,3 @@ func init() {
 		log.SetLevel(log.InfoLevel)
 	}
 }
-
-// type logFormatter struct{}
-
-// func (f *logFormatter) Format(entry *log.Entry) ([]byte, error) {
-// 	var fmtstr string
-// 	if entry.Level == log.ErrorLevel {
-// 		fmtstr = "%s %-5v err=%q"
-// 	} else {
-// 		fmtstr = "%s %-5v msg=%q"
-// 	}
-// 	s := fmt.Sprintf(
-// 		fmtstr,
-// 		entry.Time.Format("2006-01-02 15:04:05.000"),
-// 		strings.ToUpper(entry.Level.String()),
-// 		entry.Message)
-// 	for k, v := range entry.Data {
-// 		if v != "" {
-// 			s = s + fmt.Sprintf(" %s=%s", k, v)
-// 		}
-// 	}
-// 	return []byte(s + "\n"), nil
-// }
