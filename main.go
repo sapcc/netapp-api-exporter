@@ -70,16 +70,20 @@ func main() {
 
 	// load filers from configuration and register new colloector for new filer
 	go func() {
-		// fast ticker for iniital load; will be stopped after 10 times or
-		// filers are loaded
-		fastTickerCounter := 0
-		fastTicker := time.NewTicker(10 * time.Second)
-		ticker := time.NewTicker(5 * time.Minute)
+		initLoadCounter := 0
+		initLoadCh := make(chan bool, 1)
+		reloadTicker := time.NewTicker(5 * time.Minute)
+		defer reloadTicker.Stop()
 
 		for {
 			ff, err := loadFilers(*configFile)
 			if err != nil {
 				log.WithError(err).Error("load filers failed")
+				// retry initial loading config file quickly for 10 times
+				if initLoadCounter < 10 {
+					time.Sleep(10 * time.Second)
+					initLoadCh <- true
+				}
 			} else {
 				for _, f := range ff {
 					if _, ok := filers[f.Host]; ok {
@@ -109,12 +113,9 @@ func main() {
 			}
 
 			select {
-			case <-fastTicker.C:
-				fastTickerCounter += 1
-				if fastTickerCounter == 10 || filers != nil {
-					fastTicker.Stop()
-				}
-			case <-ticker.C:
+			case <-initLoadCh:
+				initLoadCounter += 1
+			case <-reloadTicker.C:
 			}
 		}
 	}()
