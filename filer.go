@@ -37,15 +37,11 @@ func NewFiler(f FilerBase) Filer {
 }
 
 func loadFilers(configFile string) ([]Filer, error) {
-	if os.Getenv("DEV") == "1" {
-		log.SetLevel(log.DebugLevel)
-		log.Debug("set log level to DebugLevel")
-	}
 	if len(configFile) == 0 {
-		log.Info("load filer configuration from env variables")
+		log.Debug("load filer configuration from env variables")
 		return []Filer{loadFilerFromEnv()}, nil
 	} else {
-		log.Infof("load filer configuration from %s", configFile)
+		log.Debugf("load filer configuration from %s", configFile)
 		return loadFilerFromFile(configFile)
 	}
 }

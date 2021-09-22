@@ -186,8 +186,7 @@ func init() {
 
 	log.SetOutput(os.Stdout)
 	log.SetFormatter(&log.TextFormatter{})
-	if *debug {
-		log.Info("debug mode")
+	if *debug || os.Getenv("DEV") == "1" {
 		log.SetLevel(log.DebugLevel)
 	} else {
 		log.SetLevel(log.InfoLevel)
