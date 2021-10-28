@@ -28,6 +28,7 @@ type Volume struct {
 	SizeAvailableForSnapshots         float64
 	SnapshotReserveSize               float64
 	PercentageSizeUsed                float64
+	PercentageSnapshotReserve         float64
 	PercentageCompressionSpaceSaved   float64
 	PercentageDeduplicationSpaceSaved float64
 	PercentageTotalSpaceSaved         float64
@@ -85,6 +86,7 @@ func newVolumeOpts(maxRecords int) *n.VolumeOptions {
 					SizeAvailableForSnapshots: "x",
 					SnapshotReserveSize:       "x",
 					PercentageSizeUsed:        "x",
+					PercentageSnapshotReserve: "x",
 				},
 				VolumeSisAttributes: &n.VolumeSisAttributes{
 					PercentageCompressionSpaceSaved:   "x",
@@ -118,6 +120,7 @@ func parseVolume(volumeInfo n.VolumeInfo) (*Volume, error) {
 		sizeAvailableForSnapshots, _ := strconv.ParseFloat(attributes.SizeAvailableForSnapshots, 64)
 		snapshotReserveSize, _ := strconv.ParseFloat(attributes.SnapshotReserveSize, 64)
 		percentageSizeUsed, _ := strconv.ParseFloat(attributes.PercentageSizeUsed, 64)
+		percentageSnapshotReserve, _ := strconv.ParseFloat(attributes.PercentageSnapshotReserve, 64)
 		// assign parsed values to output
 		volume.Size = attributes.Size
 		volume.SizeAvailable = sizeAvailable
@@ -127,6 +130,7 @@ func parseVolume(volumeInfo n.VolumeInfo) (*Volume, error) {
 		volume.SizeAvailableForSnapshots = sizeAvailableForSnapshots
 		volume.SnapshotReserveSize = snapshotReserveSize
 		volume.PercentageSizeUsed = percentageSizeUsed
+		volume.PercentageSnapshotReserve = percentageSnapshotReserve
 	}
 	if volumeInfo.VolumeSisAttributes != nil {
 		v := volumeInfo.VolumeSisAttributes
