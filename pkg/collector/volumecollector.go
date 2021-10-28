@@ -89,6 +89,14 @@ func NewVolumeCollector(client *netapp.Client, filerName string, fetchPeriod tim
 			getterFn:  func(v *netapp.Volume) float64 { return v.SnapshotReserveSize },
 		}, {
 			desc: prometheus.NewDesc(
+				"netapp_volume_percentage_snapshot_reserve",
+				"Netapp Volume Metrics: percentage snapshot reserve",
+				volumeLabels,
+				nil),
+			valueType: prometheus.GaugeValue,
+			getterFn:  func(v *netapp.Volume) float64 { return v.PercentageSnapshotReserve },
+		}, {
+			desc: prometheus.NewDesc(
 				"netapp_volume_used_percentage",
 				"Netapp Volume Metrics: used percentage ",
 				volumeLabels,
