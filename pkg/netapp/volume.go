@@ -51,7 +51,7 @@ func (c *Client) ListVolumes() (volumes []*Volume, err error) {
 }
 
 func (c *Client) listVolumes() (res []n.VolumeInfo, err error) {
-	opts := newVolumeOpts(20)
+	opts := newVolumeOpts(100)
 	pageHandler := func(r n.VolumeListPagesResponse) bool {
 		if r.Error != nil {
 			err = r.Error
