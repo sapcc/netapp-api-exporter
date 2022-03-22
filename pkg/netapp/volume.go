@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	n "github.com/pepabo/go-netapp/netapp"
+	"github.com/sirupsen/logrus"
 )
 
 type Volume struct {
@@ -45,7 +46,7 @@ func (c *Client) ListVolumes() (volumes []*Volume, err error) {
 	for _, vol := range volumeInfos {
 		parsedVol, e := parseVolume(vol)
 		if e != nil {
-			println(e)
+			logrus.Errorln(e)
 		}
 		volumes = append(volumes, parsedVol)
 	}
@@ -169,16 +170,33 @@ func parseVolume(volumeInfo n.VolumeInfo) (*Volume, error) {
 		}
 	}
 	if volumeInfo.VolumeInodeAttributes != nil {
-		filesTotal, err := strconv.ParseFloat(volumeInfo.VolumeInodeAttributes.FilesTotal, 64)
-		if err != nil {
-			return nil, err
+		var filesTotal float64
+		var filesUsed float64
+		var err error
+		if volumeInfo.VolumeInodeAttributes.FilesUsed == "" {
+			logrus.WithFields(logrus.Fields{
+				"volume":  volumeInfo.VolumeIDAttributes.Name,
+				"vserver": volumeInfo.VolumeIDAttributes.OwningVserverName,
+			}).Warn("inode-files-used is empty")
+		} else {
+			filesUsed, err = strconv.ParseFloat(volumeInfo.VolumeInodeAttributes.FilesUsed, 64)
+			if err != nil {
+				return nil, err
+			}
+			volume.InodeFilesUsed = filesUsed
 		}
-		filesUsed, err := strconv.ParseFloat(volumeInfo.VolumeInodeAttributes.FilesUsed, 64)
-		if err != nil {
-			return nil, err
+		if volumeInfo.VolumeInodeAttributes.FilesTotal == "" {
+			logrus.WithFields(logrus.Fields{
+				"volume":  volumeInfo.VolumeIDAttributes.Name,
+				"vserver": volumeInfo.VolumeIDAttributes.OwningVserverName,
+			}).Warn("inode-files-total is empty")
+		} else {
+			filesTotal, err = strconv.ParseFloat(volumeInfo.VolumeInodeAttributes.FilesTotal, 64)
+			if err != nil {
+				return nil, err
+			}
+			volume.InodeFilesTotal = filesTotal
 		}
-		volume.InodeFilesTotal = filesTotal
-		volume.InodeFilesUsed = filesUsed
 	}
 	if volumeInfo.Encrypt == "true" {
 		volume.IsEncrypted = true
