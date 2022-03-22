@@ -59,6 +59,9 @@ the env variables `NETAPP_USERNAME` and `NETAPP_PASSWORD`.
 - netapp_volume_saved_compression_percentage
 - netapp_volume_saved_deduplication_percentage
 - netapp_volume_is_encrypted
+- netapp_volume_inode_files_total
+- netapp_volume_inode_files_used
+- netapp_volume_inode_files_used_percentage
 
 <sup>1</sup> The label `project_id` is openstack specific, and `share_id` is
 openstack manila specific.

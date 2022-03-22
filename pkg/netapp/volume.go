@@ -32,6 +32,8 @@ type Volume struct {
 	PercentageCompressionSpaceSaved   float64
 	PercentageDeduplicationSpaceSaved float64
 	PercentageTotalSpaceSaved         float64
+	InodeFilesTotal                   float64
+	InodeFilesUsed                    float64
 	IsEncrypted                       bool
 }
 
@@ -95,6 +97,10 @@ func newVolumeOpts(maxRecords int) *n.VolumeOptions {
 				},
 				VolumeStateAttributes: &n.VolumeStateAttributes{
 					State: "x",
+				},
+				VolumeInodeAttributes: &n.VolumeInodeAttributes{
+					FilesTotal: "x",
+					FilesUsed:  "x",
 				},
 			},
 		},
@@ -161,6 +167,18 @@ func parseVolume(volumeInfo n.VolumeInfo) (*Volume, error) {
 		} else if volumeInfo.VolumeStateAttributes.State == "quiesced" {
 			volume.State = 4
 		}
+	}
+	if volumeInfo.VolumeInodeAttributes != nil {
+		filesTotal, err := strconv.ParseFloat(volumeInfo.VolumeInodeAttributes.FilesTotal, 64)
+		if err != nil {
+			return nil, err
+		}
+		filesUsed, err := strconv.ParseFloat(volumeInfo.VolumeInodeAttributes.FilesUsed, 64)
+		if err != nil {
+			return nil, err
+		}
+		volume.InodeFilesTotal = filesTotal
+		volume.InodeFilesUsed = filesUsed
 	}
 	if volumeInfo.Encrypt == "true" {
 		volume.IsEncrypted = true

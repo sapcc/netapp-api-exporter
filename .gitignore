@@ -12,7 +12,7 @@ debug/
 tmp/
 
 netapp-api-exporter*
-netapp_filers.yaml
+netapp-filers.yaml
 response.xml
 refactor.md
 *crl

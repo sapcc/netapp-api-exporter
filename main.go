@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	configFile        = kingpin.Flag("config", "Config file").Short('c').Default("./netapp_filer.yaml").String()
+	configFile        = kingpin.Flag("config", "Config file").Short('c').Default("./netapp-filers.yaml").String()
 	listenAddress     = kingpin.Flag("listen", "Listen address").Short('l').Default("0.0.0.0").String()
 	debug             = kingpin.Flag("debug", "Debug mode").Short('d').Bool()
 	volumeFetchPeriod = kingpin.Flag("volume-fetch-period", "Period of asynchronously fetching volumes").Short('v').Default("2m").Duration()

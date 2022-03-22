@@ -140,6 +140,24 @@ func NewVolumeCollector(client *netapp.Client, filerName string, fetchPeriod tim
 				}
 				return 0.0
 			},
+		}, {
+			desc:      prometheus.NewDesc("netapp_volume_inode_files_total", "Netapp Volume: max inode files", volumeLabels, nil),
+			valueType: prometheus.GaugeValue,
+			getterFn: func(volume *netapp.Volume) float64 {
+				return volume.InodeFilesTotal
+			},
+		}, {
+			desc:      prometheus.NewDesc("netapp_volume_inode_files_used", "Netapp Volume: used inode files", volumeLabels, nil),
+			valueType: prometheus.GaugeValue,
+			getterFn: func(volume *netapp.Volume) float64 {
+				return volume.InodeFilesUsed
+			},
+		}, {
+			desc:      prometheus.NewDesc("netapp_volume_inode_files_used_percentage", "Netapp Volume: used inode files", volumeLabels, nil),
+			valueType: prometheus.GaugeValue,
+			getterFn: func(volume *netapp.Volume) float64 {
+				return volume.InodeFilesUsed / volume.InodeFilesTotal
+			},
 		},
 	}
 	volumeTotalGauge := prometheus.NewGauge(
