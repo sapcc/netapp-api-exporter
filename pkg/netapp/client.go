@@ -19,7 +19,7 @@ type Client struct {
 	basicAuthPassword string
 }
 
-func NewClient(host, username, password, version string) *Client {
+func NewClient(host, username, password, version string) (*Client, error) {
 	baseUrl := fmt.Sprintf("https://%s", host)
 	options := &n.ClientOptions{
 		BasicAuthUser:     username,
@@ -35,7 +35,11 @@ func NewClient(host, username, password, version string) *Client {
 			},
 		},
 	}
-	return &Client{n.NewClient(baseUrl, version, options), httpClient, username, password}
+	c, err := n.NewClient(baseUrl, version, options)
+	if err != nil {
+		return nil, err
+	}
+	return &Client{c, httpClient, username, password}, nil
 }
 
 // Do request with internal http client. Useful to do quick checks.

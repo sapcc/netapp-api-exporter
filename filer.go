@@ -27,19 +27,25 @@ type Filer struct {
 	Client *netapp.Client
 }
 
-func NewFiler(f FilerBase) Filer {
-	filer := Filer{
-		FilerBase: f,
-		Client:    netapp.NewClient(f.Host, f.Username, f.Password, f.Version),
+func NewFiler(f FilerBase) (Filer, error) {
+	c, err := netapp.NewClient(f.Host, f.Username, f.Password, f.Version)
+	if err != nil {
+		return Filer{}, err
 	}
-
-	return filer
+	return Filer{
+		FilerBase: f,
+		Client:    c,
+	}, nil
 }
 
 func loadFilers(configFile string) ([]Filer, error) {
 	if len(configFile) == 0 {
 		log.Debug("load filer configuration from env variables")
-		return []Filer{loadFilerFromEnv()}, nil
+		f, err := loadFilerFromEnv()
+		if err != nil {
+			return nil, err
+		}
+		return []Filer{f}, nil
 	} else {
 		log.Debugf("load filer configuration from %s", configFile)
 		return loadFilerFromFile(configFile)
@@ -64,12 +70,16 @@ func loadFilerFromFile(fileName string) (filers []Filer, err error) {
 		if f.Version == "" {
 			f.Version = netappApiVersion
 		}
-		filers = append(filers, NewFiler(*f))
+		ff, err := NewFiler(*f)
+		if err != nil {
+			return nil, err
+		}
+		filers = append(filers, ff)
 	}
 	return
 }
 
-func loadFilerFromEnv() Filer {
+func loadFilerFromEnv() (Filer, error) {
 	name := os.Getenv("NETAPP_NAME")
 	host := os.Getenv("NETAPP_HOST")
 	pattern := os.Getenv("NETAPP_AGGREGATE_PATTERN")

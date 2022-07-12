@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
@@ -15,7 +16,7 @@ import (
 )
 
 const (
-	libraryVersion = "1"
+	libraryVersion = "2.0.0"
 	ServerURL      = `/servlets/netapp.servlets.admin.XMLrequest_filer`
 	userAgent      = "go-netapp/" + libraryVersion
 	XMLNs          = "http://www.netapp.com/filer/admin"
@@ -23,43 +24,48 @@ const (
 
 // A Client manages communication with the GitHub API.
 type Client struct {
-	client           *http.Client
-	BaseURL          *url.URL
-	UserAgent        string
-	options          *ClientOptions
-	ResponseTimeout  time.Duration
-	Aggregate        *Aggregate
-	AggregateSpace   *AggregateSpace
-	AggregateSpares  *AggregateSpares
-	Cf               *Cf
-	ClusterIdentity  *ClusterIdentity
-	Diagnosis        *Diagnosis
-	Fcp              *Fcp
-	Fcport           *Fcport
-	Job              *Job
-	Lun              *Lun
-	Net              *Net
-	Perf             *Perf
-	Qtree            *Qtree
-	QosPolicy        *QosPolicy
-	Quota            *Quota
-	QuotaReport      *QuotaReport
-	QuotaStatus      *QuotaStatus
-	Snapshot         *Snapshot
-	Snapmirror       *Snapmirror
-	StorageDisk      *StorageDisk
-	System           *System
-	Volume           *Volume
-	VolumeSpace      *VolumeSpace
-	VolumeOperations *VolumeOperation
-	LunOperations    *LunOperation
-	VServer          *VServer
+	client             *http.Client
+	BaseURL            *url.URL
+	UserAgent          string
+	options            *ClientOptions
+	ResponseTimeout    time.Duration
+	Aggregate          *Aggregate
+	AggregateSpace     *AggregateSpace
+	AggregateSpares    *AggregateSpares
+	Certificate        *Certificate
+	Cf                 *Cf
+	ClusterIdentity    *ClusterIdentity
+	Diagnosis          *Diagnosis
+	EnvironmentSensors *EnvironmentSensors
+	Fcp                *Fcp
+	Fcport             *Fcport
+	Job                *Job
+	Lun                *Lun
+	Net                *Net
+	Perf               *Perf
+	Qtree              *Qtree
+	QosPolicy          *QosPolicy
+	Quota              *Quota
+	QuotaReport        *QuotaReport
+	QuotaStatus        *QuotaStatus
+	Snapshot           *Snapshot
+	Snapmirror         *Snapmirror
+	StorageDisk        *StorageDisk
+	System             *System
+	Volume             *Volume
+	VolumeSpace        *VolumeSpace
+	VolumeOperations   *VolumeOperation
+	LunOperations      *LunOperation
+	VServer            *VServer
 }
 
 type ClientOptions struct {
 	BasicAuthUser     string
 	BasicAuthPassword string
 	SSLVerify         bool
+	CAFile            string
+	CertFile          string
+	KeyFile           string
 	Debug             bool
 	Timeout           time.Duration
 }
@@ -72,7 +78,7 @@ func DefaultOptions() *ClientOptions {
 	}
 }
 
-func NewClient(endpoint string, version string, options *ClientOptions) *Client {
+func NewClient(endpoint string, version string, options *ClientOptions) (*Client, error) {
 	if options == nil {
 		options = DefaultOptions()
 	}
@@ -81,12 +87,15 @@ func NewClient(endpoint string, version string, options *ClientOptions) *Client 
 		options.Timeout = 60 * time.Second
 	}
 
+	tlsConfig, err := newTLSConfig(options)
+	if err != nil {
+		return nil, err
+	}
+
 	httpClient := &http.Client{
 		Timeout: options.Timeout,
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: !options.SSLVerify,
-			},
+			TLSClientConfig: tlsConfig,
 		},
 	}
 	if !strings.HasSuffix(endpoint, "/") {
@@ -121,6 +130,10 @@ func NewClient(endpoint string, version string, options *ClientOptions) *Client 
 		Base: b,
 	}
 
+	c.Certificate = &Certificate{
+		Base: b,
+	}
+
 	c.ClusterIdentity = &ClusterIdentity{
 		Base: b,
 	}
@@ -129,6 +142,10 @@ func NewClient(endpoint string, version string, options *ClientOptions) *Client 
 	}
 
 	c.Diagnosis = &Diagnosis{
+		Base: b,
+	}
+
+	c.EnvironmentSensors = &EnvironmentSensors{
 		Base: b,
 	}
 
@@ -211,7 +228,7 @@ func NewClient(endpoint string, version string, options *ClientOptions) *Client 
 		Base: b,
 	}
 
-	return c
+	return c, nil
 }
 
 func (c *Client) NewRequest(method string, body interface{}) (*http.Request, error) {
@@ -290,4 +307,66 @@ func checkResp(resp *http.Response, err error) (*http.Response, error) {
 
 func newHTTPError(resp *http.Response) error {
 	return fmt.Errorf("Http Error status %d, Message: %s", resp.StatusCode, resp.Body)
+}
+
+// readCAFile reads the CA cert file from disk.
+func readCAFile(f string) ([]byte, error) {
+	data, err := ioutil.ReadFile(f)
+	if err != nil {
+		return nil, fmt.Errorf("unable to load specified CA cert %s: %s", f, err)
+	}
+	return data, nil
+}
+
+func updateRootCA(cfg *tls.Config, b []byte) bool {
+	caCertPool := x509.NewCertPool()
+	if !caCertPool.AppendCertsFromPEM(b) {
+		return false
+	}
+	cfg.RootCAs = caCertPool
+	return true
+}
+
+// getClientCertificate reads the pair of client cert and key from disk and returns a tls.Certificate.
+func getClientCertificate(options *ClientOptions) (*tls.Certificate, error) {
+	cert, err := tls.LoadX509KeyPair(options.CertFile, options.KeyFile)
+	if err != nil {
+		return nil, fmt.Errorf("unable to use specified client cert (%s) & key (%s): %s", options.CertFile, options.KeyFile, err)
+	}
+	return &cert, nil
+}
+
+func newTLSConfig(options *ClientOptions) (*tls.Config, error) {
+	tlsConfig := &tls.Config{InsecureSkipVerify: !options.SSLVerify}
+
+	// If a CA cert is provided then let's read it in so we can validate the
+	// scrape target's certificate properly.
+	if len(options.CAFile) > 0 {
+		b, err := readCAFile(options.CAFile)
+		if err != nil {
+			return nil, err
+		}
+		if !updateRootCA(tlsConfig, b) {
+			return nil, fmt.Errorf("unable to use specified CA cert %s", options.CAFile)
+		}
+	}
+
+	// If a client cert & key is provided then configure TLS config accordingly.
+	if len(options.CertFile) > 0 && len(options.KeyFile) == 0 {
+		return nil, fmt.Errorf("client cert file %q specified without client key file", options.CertFile)
+	}
+
+	if len(options.KeyFile) > 0 && len(options.CertFile) == 0 {
+		return nil, fmt.Errorf("client key file %q specified without client cert file", options.KeyFile)
+	}
+
+	if len(options.CertFile) > 0 && len(options.KeyFile) > 0 {
+		cert, err := getClientCertificate(options)
+		if err != nil {
+			return nil, err
+		}
+		tlsConfig.Certificates = []tls.Certificate{*cert}
+	}
+
+	return tlsConfig, nil
 }

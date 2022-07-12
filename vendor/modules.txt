@@ -19,7 +19,7 @@ github.com/golang/protobuf/ptypes/timestamp
 github.com/konsorten/go-windows-terminal-sequences
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil
-# github.com/pepabo/go-netapp v0.0.0-20200708032902-3c5b98f52cf4
+# github.com/pepabo/go-netapp v0.0.0-20200708032902-3c5b98f52cf4 => ../../../chuan137/go-netapp
 ## explicit
 github.com/pepabo/go-netapp/netapp
 # github.com/prometheus/client_golang v1.7.1

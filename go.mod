@@ -11,3 +11,7 @@ require (
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/yaml.v2 v2.3.0
 )
+
+replace (
+	github.com/pepabo/go-netapp v0.0.0-20200708032902-3c5b98f52cf4 => ../../../chuan137/go-netapp
+)
