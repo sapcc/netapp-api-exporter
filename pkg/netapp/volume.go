@@ -36,6 +36,8 @@ type Volume struct {
 	InodeFilesTotal                   float64
 	InodeFilesUsed                    float64
 	IsEncrypted                       bool
+	IsSpaceReportingLogical           bool
+	IsSpaceEnforcementLogical         bool
 }
 
 func (c *Client) ListVolumes() (volumes []*Volume, err error) {
@@ -90,6 +92,8 @@ func newVolumeOpts(maxRecords int) *n.VolumeOptions {
 					SnapshotReserveSize:       "x",
 					PercentageSizeUsed:        "x",
 					PercentageSnapshotReserve: "x",
+					IsSpaceReportingLogical:   "x",
+					IsSpaceEnforcementLogical: "x",
 				},
 				VolumeSisAttributes: &n.VolumeSisAttributes{
 					PercentageCompressionSpaceSaved:   "x",
@@ -128,6 +132,8 @@ func parseVolume(volumeInfo n.VolumeInfo) (*Volume, error) {
 		snapshotReserveSize, _ := strconv.ParseFloat(attributes.SnapshotReserveSize, 64)
 		percentageSizeUsed, _ := strconv.ParseFloat(attributes.PercentageSizeUsed, 64)
 		percentageSnapshotReserve, _ := strconv.ParseFloat(attributes.PercentageSnapshotReserve, 64)
+		isSpaceEnforcementLogical, _ := strconv.ParseBool(attributes.IsSpaceEnforcementLogical)
+		isSpaceReportingLogical, _ := strconv.ParseBool(attributes.IsSpaceReportingLogical)
 		// assign parsed values to output
 		volume.Size = attributes.Size
 		volume.SizeAvailable = sizeAvailable
@@ -138,6 +144,8 @@ func parseVolume(volumeInfo n.VolumeInfo) (*Volume, error) {
 		volume.SnapshotReserveSize = snapshotReserveSize
 		volume.PercentageSizeUsed = percentageSizeUsed
 		volume.PercentageSnapshotReserve = percentageSnapshotReserve
+		volume.IsSpaceEnforcementLogical = isSpaceEnforcementLogical
+		volume.IsSpaceReportingLogical = isSpaceReportingLogical
 	}
 	if volumeInfo.VolumeSisAttributes != nil {
 		v := volumeInfo.VolumeSisAttributes

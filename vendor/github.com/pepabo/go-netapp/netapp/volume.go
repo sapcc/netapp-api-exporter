@@ -157,7 +157,9 @@ type VolumeSnapshotAutodeleteAttributes struct {
 type VolumeSpaceAttributes struct {
 	FilesystemSize                  string `xml:"filesystem-size,omitempty"`
 	IsFilesysSizeFixed              string `xml:"is-filesys-size-fixed,omitempty"`
+	IsSpaceEnforcementLogical       string `xml:"is-space-enforcement-logical"`
 	IsSpaceGuaranteeEnabled         string `xml:"is-space-guarantee-enabled,omitempty"`
+	IsSpaceReportingLogical         string `xml:"is-space-reporting-logical"`
 	IsSpaceSloEnabled               string `xml:"is-space-slo-enabled,omitempty"`
 	LogicalUsed                     string `xml:"logical-used,omitempty"`
 	LogicalUsedByAfs                string `xml:"logical-used-by-afs,omitempty"`

@@ -89,6 +89,15 @@ func NewAggregateCollector(client *netapp.Client, filerName, aggrPattern string)
 				}
 				return 0.0
 			},
+		}, {
+			desc:      prometheus.NewDesc("netapp_aggregate_state_is_online", "Netapp Aggregate state", aggrLabels, nil),
+			valueType: prometheus.GaugeValue,
+			getterFn: func(m *netapp.Aggregate) float64 {
+				if m.State == "online" {
+					return 1.0
+				}
+				return 0.0
+			},
 		},
 	}
 	scrapeDurationGauge := prometheus.NewGauge(

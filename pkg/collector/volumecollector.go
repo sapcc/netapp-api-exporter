@@ -128,11 +128,7 @@ func NewVolumeCollector(client *netapp.Client, filerName string, fetchPeriod tim
 			valueType: prometheus.GaugeValue,
 			getterFn:  func(v *netapp.Volume) float64 { return v.PercentageDeduplicationSpaceSaved },
 		}, {
-			desc: prometheus.NewDesc(
-				"netapp_volume_is_encrypted",
-				"Netapp Volume Metrics: encrypt",
-				volumeLabels,
-				nil),
+			desc:      prometheus.NewDesc("netapp_volume_is_encrypted", "Netapp Volume Metrics: encrypt", volumeLabels, nil),
 			valueType: prometheus.GaugeValue,
 			getterFn: func(v *netapp.Volume) float64 {
 				if v.IsEncrypted {
@@ -161,6 +157,24 @@ func NewVolumeCollector(client *netapp.Client, filerName string, fetchPeriod tim
 				} else {
 					return 0.0
 				}
+			},
+		}, {
+			desc:      prometheus.NewDesc("netapp_volume_is_space_reporting_logical", "NetApp Volume space reporting logical", volumeLabels, nil),
+			valueType: prometheus.GaugeValue,
+			getterFn: func(v *netapp.Volume) float64 {
+				if v.IsSpaceReportingLogical {
+					return 1.0
+				}
+				return 0.0
+			},
+		}, {
+			desc:      prometheus.NewDesc("netapp_volume_is_space_enforcement_logical", "NetApp Volume space enforcement logical", volumeLabels, nil),
+			valueType: prometheus.GaugeValue,
+			getterFn: func(v *netapp.Volume) float64 {
+				if v.IsSpaceEnforcementLogical {
+					return 1.0
+				}
+				return 0.0
 			},
 		},
 	}

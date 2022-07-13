@@ -17,6 +17,7 @@ type Aggregate struct {
 	PhysicalUsed        float64
 	PhysicalUsedPercent float64
 	IsEncrypted         bool
+	State               string
 }
 
 func (c *Client) ListAggregates() (aggregates []*Aggregate, err error) {
@@ -76,5 +77,6 @@ func parseAggregate(aggrInfo n.AggrInfo) *Aggregate {
 		PhysicalUsed:        float64(aggrInfo.AggrSpaceAttributes.PhysicalUsed),
 		PhysicalUsedPercent: float64(aggrInfo.AggrSpaceAttributes.PhysicalUsedPercent),
 		IsEncrypted:         isEncrypted,
+		State:               aggrInfo.AggrRaidAttributes.State,
 	}
 }
