@@ -176,6 +176,10 @@ func NewVolumeCollector(client *netapp.Client, filerName string, fetchPeriod tim
 				}
 				return 0.0
 			},
+		}, {
+			desc:      prometheus.NewDesc("netapp_volume_logical_used_bytes", "Netapp Volume logical used in bytes", volumeLabels, nil),
+			valueType: prometheus.GaugeValue,
+			getterFn:  func(v *netapp.Volume) float64 { return v.LogicalUsed },
 		},
 	}
 	volumeTotalGauge := prometheus.NewGauge(

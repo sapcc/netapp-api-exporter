@@ -38,6 +38,7 @@ type Volume struct {
 	IsEncrypted                       bool
 	IsSpaceReportingLogical           bool
 	IsSpaceEnforcementLogical         bool
+	LogicalUsed                       float64
 }
 
 func (c *Client) ListVolumes() (volumes []*Volume, err error) {
@@ -94,6 +95,7 @@ func newVolumeOpts(maxRecords int) *n.VolumeOptions {
 					PercentageSnapshotReserve: "x",
 					IsSpaceReportingLogical:   "x",
 					IsSpaceEnforcementLogical: "x",
+					LogicalUsed:               "x",
 				},
 				VolumeSisAttributes: &n.VolumeSisAttributes{
 					PercentageCompressionSpaceSaved:   "x",
@@ -134,6 +136,7 @@ func parseVolume(volumeInfo n.VolumeInfo) (*Volume, error) {
 		percentageSnapshotReserve, _ := strconv.ParseFloat(attributes.PercentageSnapshotReserve, 64)
 		isSpaceEnforcementLogical, _ := strconv.ParseBool(attributes.IsSpaceEnforcementLogical)
 		isSpaceReportingLogical, _ := strconv.ParseBool(attributes.IsSpaceReportingLogical)
+		logicalUsed, _ := strconv.ParseFloat(attributes.LogicalUsed, 64)
 		// assign parsed values to output
 		volume.Size = attributes.Size
 		volume.SizeAvailable = sizeAvailable
@@ -146,6 +149,7 @@ func parseVolume(volumeInfo n.VolumeInfo) (*Volume, error) {
 		volume.PercentageSnapshotReserve = percentageSnapshotReserve
 		volume.IsSpaceEnforcementLogical = isSpaceEnforcementLogical
 		volume.IsSpaceReportingLogical = isSpaceReportingLogical
+		volume.LogicalUsed = logicalUsed
 	}
 	if volumeInfo.VolumeSisAttributes != nil {
 		v := volumeInfo.VolumeSisAttributes
