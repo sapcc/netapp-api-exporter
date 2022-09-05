@@ -19,6 +19,7 @@ type Volume struct {
 	Vserver                           string
 	Volume                            string
 	VolumeType                        string
+  VolumeState                       string
 	Comment                           string
 	State                             int
 	Size                              int
@@ -119,7 +120,7 @@ func parseVolume(volumeInfo n.VolumeInfo) (*Volume, error) {
 	if volumeInfo.VolumeIDAttributes != nil {
 		volume.Vserver = volumeInfo.VolumeIDAttributes.OwningVserverName
 		volume.Volume = volumeInfo.VolumeIDAttributes.Name
-		volume.VolumeType = volumeInfo.VolumeIDAttributes.Type
+    volume.VolumeState = volumeInfo.VolumeStateAttributes.State
 	} else {
 		msg := fmt.Sprintf("missing VolumeIDAttribtues in %+v", volumeInfo)
 		return nil, errors.New(msg)
@@ -180,6 +181,7 @@ func parseVolume(volumeInfo n.VolumeInfo) (*Volume, error) {
 		} else if volumeInfo.VolumeStateAttributes.State == "quiesced" {
 			volume.State = 4
 		}
+		volume.VolumeType = volumeInfo.VolumeIDAttributes.Type
 	}
 	if volumeInfo.VolumeInodeAttributes != nil {
 		var filesTotal float64
