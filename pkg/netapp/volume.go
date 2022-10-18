@@ -15,11 +15,12 @@ type Volume struct {
 	ShareID                           string
 	ShareName                         string
 	ShareType                         string
+	Aggregate                         string
 	FilerName                         string
 	Vserver                           string
 	Volume                            string
 	VolumeType                        string
-  VolumeState                       string
+	VolumeState                       string
 	Comment                           string
 	State                             int
 	Size                              int
@@ -78,11 +79,12 @@ func newVolumeOpts(maxRecords int) *n.VolumeOptions {
 			VolumeInfo: &n.VolumeInfo{
 				Encrypt: "x",
 				VolumeIDAttributes: &n.VolumeIDAttributes{
-					Name:              "x",
-					OwningVserverName: "x",
-					OwningVserverUUID: "x",
-					Comment:           "x",
-					Type:              "x",
+					Name:                    "x",
+					ContainingAggregateName: "x",
+					OwningVserverName:       "x",
+					OwningVserverUUID:       "x",
+					Comment:                 "x",
+					Type:                    "x",
 				},
 				VolumeSpaceAttributes: &n.VolumeSpaceAttributes{
 					Size:                      1,
@@ -120,7 +122,8 @@ func parseVolume(volumeInfo n.VolumeInfo) (*Volume, error) {
 	if volumeInfo.VolumeIDAttributes != nil {
 		volume.Vserver = volumeInfo.VolumeIDAttributes.OwningVserverName
 		volume.Volume = volumeInfo.VolumeIDAttributes.Name
-    volume.VolumeState = volumeInfo.VolumeStateAttributes.State
+		volume.VolumeState = volumeInfo.VolumeStateAttributes.State
+		volume.Aggregate = volumeInfo.VolumeIDAttributes.ContainingAggregateName
 	} else {
 		msg := fmt.Sprintf("missing VolumeIDAttribtues in %+v", volumeInfo)
 		return nil, errors.New(msg)
