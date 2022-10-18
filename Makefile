@@ -24,7 +24,7 @@ bin/${app}_darwin_amd64: $(GOFILES)
 .PHONY: docker
 docker: bin/${app}_linux_amd64
 	@echo "[INFO] build docker image"
-	docker build --platform linux/amd64 -t $(IMAGE):$(TAG) .
+	docker build --platform=linux/amd64 --progress=plain --no-cache -t $(IMAGE):$(TAG) .
 	@echo "[INFO] push docker image"
 	docker tag $(IMAGE):$(TAG) $(IMAGE):latest
 	docker push $(IMAGE):$(TAG)
