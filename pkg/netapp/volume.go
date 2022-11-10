@@ -127,6 +127,15 @@ func parseVolume(volumeInfo n.VolumeInfo) (*Volume, error) {
 		volume.Volume = volumeInfo.VolumeIDAttributes.Name
 		volume.VolumeState = volumeInfo.VolumeStateAttributes.State
 		volume.Vserver = volumeInfo.VolumeIDAttributes.OwningVserverName
+		if volumeInfo.VolumeIDAttributes.Comment != "" {
+			shareID, shareName, shareType, projectID, err := parseVolumeComment(volumeInfo.VolumeIDAttributes.Comment)
+			if err == nil {
+				volume.ShareID = shareID
+				volume.ShareName = shareName
+				volume.ShareType = shareType
+				volume.ProjectID = projectID
+			}
+		}
 	} else {
 		msg := fmt.Sprintf("missing VolumeIDAttribtues in %+v", volumeInfo)
 		return nil, errors.New(msg)
@@ -167,15 +176,6 @@ func parseVolume(volumeInfo n.VolumeInfo) (*Volume, error) {
 		volume.PercentageCompressionSpaceSaved = percentageCompressionSpaceSaved
 		volume.PercentageDeduplicationSpaceSaved = percentageDeduplicationSpaceSaved
 		volume.PercentageTotalSpaceSaved = percentageTotalSpaceSaved
-	}
-	if volumeInfo.VolumeIDAttributes.Comment != "" {
-		shareID, shareName, shareType, projectID, err := parseVolumeComment(volumeInfo.VolumeIDAttributes.Comment)
-		if err == nil {
-			volume.ShareID = shareID
-			volume.ShareName = shareName
-			volume.ShareType = shareType
-			volume.ProjectID = projectID
-		}
 	}
 	if volumeInfo.VolumeStateAttributes != nil {
 		if volumeInfo.VolumeStateAttributes.State == "online" {
