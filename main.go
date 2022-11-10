@@ -123,7 +123,7 @@ func main() {
 	port := "9108"
 	addr := *listenAddress + ":" + port
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
-	log.Debugf("open link http://%s/metrics for metrics", addr)
+	log.WithField("address", fmt.Sprintf("http://%s/metrics", addr)).Info("exporting metrics")
 	log.Fatal(http.ListenAndServe(addr, nil))
 }
 
