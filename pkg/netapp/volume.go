@@ -29,6 +29,7 @@ type Volume struct {
 	SizeUsed                          float64
 	SizeUsedBySnapshots               float64
 	SizeAvailableForSnapshots         float64
+	SnapshotPolicy                    string
 	SnapshotReserveSize               float64
 	PercentageSizeUsed                float64
 	PercentageSnapshotReserve         float64
@@ -111,6 +112,9 @@ func newVolumeOpts(maxRecords int) *n.VolumeOptions {
 				VolumeInodeAttributes: &n.VolumeInodeAttributes{
 					FilesTotal: "x",
 					FilesUsed:  "x",
+				},
+				VolumeSnapshotAttributes: &n.VolumeSnapshotAttributes{
+					SnapshotPolicy: "x",
 				},
 			},
 		},
@@ -219,6 +223,9 @@ func parseVolume(volumeInfo n.VolumeInfo) (*Volume, error) {
 		volume.IsEncrypted = true
 	} else {
 		volume.IsEncrypted = false
+	}
+	if volumeInfo.VolumeSnapshotAttributes != nil {
+		volume.SnapshotPolicy = volumeInfo.VolumeSnapshotAttributes.SnapshotPolicy
 	}
 	return &volume, nil
 }

@@ -44,7 +44,7 @@ the env variables `NETAPP_USERNAME` and `NETAPP_PASSWORD`.
 ## Metrics
 
 **Volume Metrics** with labels `availability_zone`, `filer`, `project_id`,
-`share_id`, `volume` and `vserver`. <sup>1</sup>
+`share_id`, `volume`, `vserver` and `snapshot_policy`. <sup>1</sup>
 
 - netapp_volume_state <sup>2</sup>
 - netapp_volume_total_bytes

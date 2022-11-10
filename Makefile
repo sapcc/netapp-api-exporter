@@ -21,6 +21,9 @@ bin/${app}_linux_amd64: $(GOFILES)
 bin/${app}_darwin_amd64: $(GOFILES)
 	GOOS=darwin GOARCH=amd64 go build -o $@
 
+bin/${app}_darwin_arm64: $(GOFILES)
+	GOOS=darwin GOARCH=arm64 go build -o $@
+
 .PHONY: docker
 docker: bin/${app}_linux_amd64
 	@echo "[INFO] build docker image"
