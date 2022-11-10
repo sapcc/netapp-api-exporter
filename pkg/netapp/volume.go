@@ -18,6 +18,7 @@ type Volume struct {
 	IsEncrypted                       bool
 	IsSpaceReportingLogical           bool
 	IsSpaceEnforcementLogical         bool
+	Node                              string
 	PercentageSizeUsed                float64
 	PercentageSnapshotReserve         float64
 	PercentageCompressionSpaceSaved   float64
@@ -79,12 +80,13 @@ func newVolumeOpts(maxRecords int) *n.VolumeOptions {
 			VolumeInfo: &n.VolumeInfo{
 				Encrypt: "x",
 				VolumeIDAttributes: &n.VolumeIDAttributes{
-					Name:                    "x",
+					Comment:                 "x",
 					ContainingAggregateName: "x",
+					Name:                    "x",
 					OwningVserverName:       "x",
 					OwningVserverUUID:       "x",
-					Comment:                 "x",
 					Type:                    "x",
+					Node:                    "x",
 				},
 				VolumeSpaceAttributes: &n.VolumeSpaceAttributes{
 					Size:                      1,
@@ -124,6 +126,7 @@ func parseVolume(volumeInfo n.VolumeInfo) (*Volume, error) {
 	volume := Volume{}
 	if volumeInfo.VolumeIDAttributes != nil {
 		volume.Aggregate = volumeInfo.VolumeIDAttributes.ContainingAggregateName
+        volume.Node = volumeInfo.VolumeIDAttributes.Node
 		volume.Volume = volumeInfo.VolumeIDAttributes.Name
 		volume.VolumeState = volumeInfo.VolumeStateAttributes.State
 		volume.Vserver = volumeInfo.VolumeIDAttributes.OwningVserverName
