@@ -13,7 +13,7 @@ DEV_ARGS += -c $(CONFIG_FILE)
 endif
 
 .PHONY: build
-build: bin/${app}_linux_amd64 bin/${app}_darwin_amd64
+build: bin/${app}_linux_amd64 bin/${app}_darwin_amd64 bin/${app}_darwin_arm64
 
 bin/${app}_linux_amd64: $(GOFILES)
 	GOOS=linux GOARCH=amd64 go build -o $@
