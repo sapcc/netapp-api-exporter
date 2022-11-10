@@ -11,37 +11,36 @@ import (
 )
 
 type Volume struct {
-	ProjectID                         string
-	ShareID                           string
-	ShareName                         string
-	ShareType                         string
 	Aggregate                         string
-	FilerName                         string
-	Vserver                           string
-	Volume                            string
-	VolumeType                        string
-	VolumeState                       string
 	Comment                           string
-	State                             int
-	Size                              int
-	SizeTotal                         float64
-	SizeAvailable                     float64
-	SizeUsed                          float64
-	SizeUsedBySnapshots               float64
-	SizeAvailableForSnapshots         float64
-	SnapshotPolicy                    string
-	SnapshotReserveSize               float64
-	PercentageSizeUsed                float64
-	PercentageSnapshotReserve         float64
-	PercentageCompressionSpaceSaved   float64
-	PercentageDeduplicationSpaceSaved float64
-	PercentageTotalSpaceSaved         float64
 	InodeFilesTotal                   float64
 	InodeFilesUsed                    float64
 	IsEncrypted                       bool
 	IsSpaceReportingLogical           bool
 	IsSpaceEnforcementLogical         bool
-	LogicalUsed                       float64
+	PercentageSizeUsed                float64
+	PercentageSnapshotReserve         float64
+	PercentageCompressionSpaceSaved   float64
+	PercentageDeduplicationSpaceSaved float64
+	PercentageTotalSpaceSaved         float64
+	ProjectID                         string
+	ShareID                           string
+	ShareName                         string
+	ShareType                         string
+	Size                              int
+	SizeTotal                         float64
+	SizeAvailable                     float64
+	SizeAvailableForSnapshots         float64
+	SizeLogicalUsed                   float64
+	SizeUsed                          float64
+	SizeUsedBySnapshots               float64
+	SnapshotPolicy                    string
+	SnapshotReserveSize               float64
+	State                             int
+	Volume                            string
+	VolumeType                        string
+	VolumeState                       string
+	Vserver                           string
 }
 
 func (c *Client) ListVolumes() (volumes []*Volume, err error) {
@@ -124,40 +123,40 @@ func newVolumeOpts(maxRecords int) *n.VolumeOptions {
 func parseVolume(volumeInfo n.VolumeInfo) (*Volume, error) {
 	volume := Volume{}
 	if volumeInfo.VolumeIDAttributes != nil {
-		volume.Vserver = volumeInfo.VolumeIDAttributes.OwningVserverName
+		volume.Aggregate = volumeInfo.VolumeIDAttributes.ContainingAggregateName
 		volume.Volume = volumeInfo.VolumeIDAttributes.Name
 		volume.VolumeState = volumeInfo.VolumeStateAttributes.State
-		volume.Aggregate = volumeInfo.VolumeIDAttributes.ContainingAggregateName
+		volume.Vserver = volumeInfo.VolumeIDAttributes.OwningVserverName
 	} else {
 		msg := fmt.Sprintf("missing VolumeIDAttribtues in %+v", volumeInfo)
 		return nil, errors.New(msg)
 	}
 	if volumeInfo.VolumeSpaceAttributes != nil {
 		attributes := volumeInfo.VolumeSpaceAttributes
-		sizeTotal, _ := strconv.ParseFloat(attributes.SizeTotal, 64)
-		sizeAvailable, _ := strconv.ParseFloat(attributes.SizeAvailable, 64)
-		sizeUsed, _ := strconv.ParseFloat(attributes.SizeUsed, 64)
-		sizeUsedBySnapshots, _ := strconv.ParseFloat(attributes.SizeUsedBySnapshots, 64)
-		sizeAvailableForSnapshots, _ := strconv.ParseFloat(attributes.SizeAvailableForSnapshots, 64)
-		snapshotReserveSize, _ := strconv.ParseFloat(attributes.SnapshotReserveSize, 64)
-		percentageSizeUsed, _ := strconv.ParseFloat(attributes.PercentageSizeUsed, 64)
-		percentageSnapshotReserve, _ := strconv.ParseFloat(attributes.PercentageSnapshotReserve, 64)
 		isSpaceEnforcementLogical, _ := strconv.ParseBool(attributes.IsSpaceEnforcementLogical)
 		isSpaceReportingLogical, _ := strconv.ParseBool(attributes.IsSpaceReportingLogical)
-		logicalUsed, _ := strconv.ParseFloat(attributes.LogicalUsed, 64)
+		percentageSizeUsed, _ := strconv.ParseFloat(attributes.PercentageSizeUsed, 64)
+		percentageSnapshotReserve, _ := strconv.ParseFloat(attributes.PercentageSnapshotReserve, 64)
+		sizeAvailable, _ := strconv.ParseFloat(attributes.SizeAvailable, 64)
+		sizeAvailableForSnapshots, _ := strconv.ParseFloat(attributes.SizeAvailableForSnapshots, 64)
+		sizeTotal, _ := strconv.ParseFloat(attributes.SizeTotal, 64)
+		sizeLogicalUsed, _ := strconv.ParseFloat(attributes.LogicalUsed, 64)
+		sizeUsed, _ := strconv.ParseFloat(attributes.SizeUsed, 64)
+		sizeUsedBySnapshots, _ := strconv.ParseFloat(attributes.SizeUsedBySnapshots, 64)
+		snapshotReserveSize, _ := strconv.ParseFloat(attributes.SnapshotReserveSize, 64)
 		// assign parsed values to output
+		volume.IsSpaceEnforcementLogical = isSpaceEnforcementLogical
+		volume.IsSpaceReportingLogical = isSpaceReportingLogical
+		volume.PercentageSizeUsed = percentageSizeUsed
+		volume.PercentageSnapshotReserve = percentageSnapshotReserve
 		volume.Size = attributes.Size
 		volume.SizeAvailable = sizeAvailable
+		volume.SizeLogicalUsed = sizeLogicalUsed
 		volume.SizeTotal = sizeTotal
 		volume.SizeUsed = sizeUsed
 		volume.SizeUsedBySnapshots = sizeUsedBySnapshots
 		volume.SizeAvailableForSnapshots = sizeAvailableForSnapshots
 		volume.SnapshotReserveSize = snapshotReserveSize
-		volume.PercentageSizeUsed = percentageSizeUsed
-		volume.PercentageSnapshotReserve = percentageSnapshotReserve
-		volume.IsSpaceEnforcementLogical = isSpaceEnforcementLogical
-		volume.IsSpaceReportingLogical = isSpaceReportingLogical
-		volume.LogicalUsed = logicalUsed
 	}
 	if volumeInfo.VolumeSisAttributes != nil {
 		v := volumeInfo.VolumeSisAttributes
