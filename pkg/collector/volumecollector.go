@@ -105,7 +105,31 @@ func NewVolumeCollector(client *netapp.Client, filerName string, fetchPeriod tim
 			getterFn:  func(v *netapp.Volume) float64 { return v.PercentageSizeUsed },
 		}, {
 			desc: prometheus.NewDesc(
-				"netapp_volume_saved_total_percentage",
+				"netapp_volume_total_saved_bytes",
+				"Netapp Volume Metrics: total space saved in bytes",
+				volumeLabels,
+				nil),
+			valueType: prometheus.GaugeValue,
+			getterFn:  func(v *netapp.Volume) float64 { return v.SisTotalSpaceSaved },
+		}, {
+			desc: prometheus.NewDesc(
+				"netapp_volume_compression_saved_bytes",
+				"Netapp Volume Metrics: space saved by compression in bytes",
+				volumeLabels,
+				nil),
+			valueType: prometheus.GaugeValue,
+			getterFn:  func(v *netapp.Volume) float64 { return v.SisCompressionSpaceSaved },
+		}, {
+			desc: prometheus.NewDesc(
+				"netapp_volume_deduplication_saved_bytes",
+				"Netapp Volume Metrics: space saved by deduplication in bytes",
+				volumeLabels,
+				nil),
+			valueType: prometheus.GaugeValue,
+			getterFn:  func(v *netapp.Volume) float64 { return v.SisDeduplicationSpaceSaved },
+		}, {
+			desc: prometheus.NewDesc(
+				"netapp_volume_total_saved_percentage",
 				"Netapp Volume Metrics: percentage of space compression and deduplication saved",
 				volumeLabels,
 				nil),
@@ -113,7 +137,7 @@ func NewVolumeCollector(client *netapp.Client, filerName string, fetchPeriod tim
 			getterFn:  func(v *netapp.Volume) float64 { return v.PercentageTotalSpaceSaved },
 		}, {
 			desc: prometheus.NewDesc(
-				"netapp_volume_saved_compression_percentage",
+				"netapp_volume_compression_saved_percentage",
 				"Netapp Volume Metrics: percentage of space compression saved",
 				volumeLabels,
 				nil),
@@ -121,7 +145,7 @@ func NewVolumeCollector(client *netapp.Client, filerName string, fetchPeriod tim
 			getterFn:  func(v *netapp.Volume) float64 { return v.PercentageCompressionSpaceSaved },
 		}, {
 			desc: prometheus.NewDesc(
-				"netapp_volume_saved_deduplication_percentage",
+				"netapp_volume_deduplication_saved_percentage",
 				"Netapp Volume Metrics: percentage of space deduplication saved",
 				volumeLabels,
 				nil),
@@ -237,7 +261,9 @@ func (c *VolumeCollector) Collect(ch chan<- prometheus.Metric) {
 	// export metrics
 	log.Debugf("VolumeCollector[%v] Collect() exporting %d volumes", c.filerName, len(c.volumes))
 	for _, volume := range c.volumes {
-		volumeLabels := []string{volume.Aggregate, volume.Node, volume.Vserver, volume.Volume, volume.VolumeType, volume.VolumeState, volume.ProjectID, volume.ShareID, volume.ShareName, volume.ShareType, volume.SnapshotPolicy}
+		volumeLabels := []string{
+			volume.Aggregate, volume.Node, volume.Vserver, volume.Volume, volume.VolumeType, volume.VolumeState,
+			volume.ProjectID, volume.ShareID, volume.ShareName, volume.ShareType, volume.SnapshotPolicy}
 		for _, m := range c.volumeMetrics {
 			ch <- prometheus.MustNewConstMetric(m.desc, m.valueType, m.getterFn(volume), volumeLabels...)
 		}

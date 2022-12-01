@@ -55,9 +55,12 @@ the env variables `NETAPP_USERNAME` and `NETAPP_PASSWORD`.
 - netapp_volume_snapshot_available_bytes
 - netapp_volume_percentage_snapshot_reserve
 - netapp_volume_used_percentage
-- netapp_volume_saved_total_percentage
-- netapp_volume_saved_compression_percentage
-- netapp_volume_saved_deduplication_percentage
+- netapp_volume_compression_saved_bytes
+- netapp_volume_deduplication_saved_bytes
+- netapp_volume_total_saved_bytes
+- netapp_volume_compression_saved_percentage
+- netapp_volume_deduplication_saved_percentage
+- netapp_volume_total_saved_percentage
 - netapp_volume_is_encrypted
 - netapp_volume_inode_files_total
 - netapp_volume_inode_files_used

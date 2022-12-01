@@ -35,6 +35,10 @@ type Volume struct {
 	SizeLogicalUsed                   float64
 	SizeUsed                          float64
 	SizeUsedBySnapshots               float64
+	SisCompressionSpaceSaved          float64
+	SisDeduplicationSpaceSaved        float64
+	SisTotalSpaceSaved                float64
+	SisDeduplicationSpaceShared       float64
 	SnapshotPolicy                    string
 	SnapshotReserveSize               float64
 	State                             int
@@ -106,6 +110,10 @@ func newVolumeOpts(maxRecords int) *n.VolumeOptions {
 					PercentageCompressionSpaceSaved:   "x",
 					PercentageDeduplicationSpaceSaved: "x",
 					PercentageTotalSpaceSaved:         "x",
+					CompressionSpaceSaved:             "x",
+					DeduplicationSpaceSaved:           "x",
+					TotalSpaceSaved:                   "x",
+					DeduplicationSpaceShared:          "x",
 				},
 				VolumeStateAttributes: &n.VolumeStateAttributes{
 					State: "x",
@@ -126,7 +134,7 @@ func parseVolume(volumeInfo n.VolumeInfo) (*Volume, error) {
 	volume := Volume{}
 	if volumeInfo.VolumeIDAttributes != nil {
 		volume.Aggregate = volumeInfo.VolumeIDAttributes.ContainingAggregateName
-        volume.Node = volumeInfo.VolumeIDAttributes.Node
+		volume.Node = volumeInfo.VolumeIDAttributes.Node
 		volume.Volume = volumeInfo.VolumeIDAttributes.Name
 		volume.VolumeState = volumeInfo.VolumeStateAttributes.State
 		volume.Vserver = volumeInfo.VolumeIDAttributes.OwningVserverName
@@ -175,10 +183,16 @@ func parseVolume(volumeInfo n.VolumeInfo) (*Volume, error) {
 		percentageCompressionSpaceSaved, _ := strconv.ParseFloat(v.PercentageCompressionSpaceSaved, 64)
 		percentageDeduplicationSpaceSaved, _ := strconv.ParseFloat(v.PercentageDeduplicationSpaceSaved, 64)
 		percentageTotalSpaceSaved, _ := strconv.ParseFloat(v.PercentageTotalSpaceSaved, 64)
+        compressionSpaceSaved, _ := strconv.ParseFloat(v.CompressionSpaceSaved, 64)
+        deduplicationSpaceSaved, _ := strconv.ParseFloat(v.DeduplicationSpaceSaved, 64)
+        totalSpaceSaved, _ := strconv.ParseFloat(v.TotalSpaceSaved, 64)
 		// assign parsed values to output
 		volume.PercentageCompressionSpaceSaved = percentageCompressionSpaceSaved
 		volume.PercentageDeduplicationSpaceSaved = percentageDeduplicationSpaceSaved
 		volume.PercentageTotalSpaceSaved = percentageTotalSpaceSaved
+        volume.SisCompressionSpaceSaved = compressionSpaceSaved
+        volume.SisDeduplicationSpaceSaved = deduplicationSpaceSaved
+        volume.SisTotalSpaceSaved = totalSpaceSaved
 	}
 	if volumeInfo.VolumeStateAttributes != nil {
 		if volumeInfo.VolumeStateAttributes.State == "online" {
