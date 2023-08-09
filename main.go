@@ -165,6 +165,7 @@ func registerFiler(reg prometheus.Registerer, f Filer) error {
 	}
 	extraLabels := prometheus.Labels{
 		"filer":             f.Name,
+		"host":              f.Host,
 		"availability_zone": f.AvailabilityZone,
 	}
 	if !*disableAggregate {
